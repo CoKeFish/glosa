@@ -4,7 +4,7 @@ import { api, IGNORED, KNOWN, Section, Term } from "../api";
 import { TermPanel } from "../components/TermPanel";
 import { Cover } from "../Cover";
 import { useI18n } from "../i18n";
-import { Cards, ChevronLeft, ChevronRight, Close } from "../icons";
+import { Cards, ChevronLeft, ChevronRight, Close, Gear } from "../icons";
 import { sameSelection, Selection, statusClass, unitsByToken, wordSelection } from "../reading";
 
 type Undo = { language: string; keys: string[] };
@@ -36,6 +36,7 @@ export function Reader() {
   const [activeGrammar, setActiveGrammar] = useState<number | null>(null);
   const [pageMarksKnown, setPageMarksKnown] = useState(true);
   const [clickSaves, setClickSaves] = useState(true);
+  const [autoPlay, setAutoPlay] = useState(true);
   const [undo, setUndo] = useState<Undo | null>(null);
   const [notice, setNotice] = useState("");
   const [help, setHelp] = useState(false);
@@ -64,6 +65,7 @@ export function Reader() {
       .then((s) => {
         setPageMarksKnown(s.reader.page_marks_known);
         setClickSaves(s.reader.click_saves);
+        setAutoPlay(s.reader.auto_play);
       })
       .catch(() => {});
   }, []);
@@ -128,6 +130,19 @@ export function Reader() {
     // A new phrase or expression must show up as a unit wherever it occurs on the page.
     if ((term.kind === "phrase" || term.kind === "expression") && !section?.units.some((u) => u.k === term.key)) {
       load(true);
+    }
+  }
+
+  function onRemoved(term: Term) {
+    setTerms((prev) => {
+      const next = { ...prev };
+      delete next[term.key];
+      return next;
+    });
+    // A removed phrase or expression the parser did not find must stop being marked.
+    if (term.kind === "phrase" || term.kind === "expression") {
+      load(true);
+      if (term.kind === "phrase") setSelection(null);
     }
   }
 
@@ -196,7 +211,11 @@ export function Reader() {
           <div className="fill" style={{ width: `${progress * 100}%` }} />
           <div className="knob" style={{ left: `${progress * 100}%` }} />
         </div>
-        <div className="right" />
+        <div className="right">
+          <Link to="/settings" className="icon-btn" aria-label={t("nav.settings")} title={t("nav.settings")}>
+            <Gear />
+          </Link>
+        </div>
       </header>
 
       <div className="reader-body">
@@ -319,8 +338,10 @@ export function Reader() {
               selection={selection}
               term={terms[selection.key]}
               onSaved={onSaved}
+              onRemoved={onRemoved}
               onSelect={setSelection}
               autoSave={clickSaves && !!selection.clicked && selection.kind !== "phrase"}
+              autoPlay={autoPlay}
               onClose={() => setSelection(null)}
               activeGrammar={activeGrammar}
               onGrammar={setActiveGrammar}

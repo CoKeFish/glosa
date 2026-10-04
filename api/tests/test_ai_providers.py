@@ -75,6 +75,23 @@ def test_anthropic_refusal_and_bad_key():
         asyncio.run(model.complete("sys", "hi"))
 
 
+def test_model_list_drops_snapshots_and_non_chat(monkeypatch):
+    from app.ai import openai_compatible
+
+    data = {"data": [
+        {"id": "gpt-5.5", "created": 3}, {"id": "gpt-5.5-2026-04-23", "created": 3},
+        {"id": "text-embedding-3-large", "created": 2}, {"id": "sora-2", "created": 2}, {"id": "o4-mini", "created": 1},
+    ]}
+
+    class FakeAsyncClient(httpx.AsyncClient):
+        def __init__(self, **kwargs):
+            super().__init__(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=data)))
+
+    monkeypatch.setattr("app.ai.openai_compatible.httpx.AsyncClient", FakeAsyncClient)
+    models = asyncio.run(openai_compatible.list_models("https://api.openai.com/v1", "sk", chat_only=True))
+    assert [m["id"] for m in models] == ["gpt-5.5", "o4-mini"]
+
+
 def test_openai_compatible_request(monkeypatch):
     seen = {}
 

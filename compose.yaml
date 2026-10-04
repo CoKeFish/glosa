@@ -22,11 +22,15 @@ services:
       DATABASE_URL: postgresql+psycopg://glosa:${POSTGRES_PASSWORD:-glosa}@db:5432/glosa
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
       TRANSLATOR_URL: http://translator:5000
+      # Encrypts API keys entered in the app. Optional: without it a key is generated in api-data.
+      GLOSA_SECRET_KEY: ${GLOSA_SECRET_KEY:-}
     volumes:
       - ./api/app:/app/app
       - ./api/tests:/app/tests
+      - api-data:/data
     ports:
       - "8001:8000"
     extra_hosts:
@@ -44,6 +48,16 @@ services:
     volumes:
       - translator-models:/home/libretranslate/.local
 
+  # Local text-to-speech. Kokoro is the main voice; Supertonic covers the languages Kokoro
+  # lacks (German, Russian, Korean…). No host ports: only the API talks to them.
+  tts-kokoro:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+
+  tts-supertonic:
+    build: ./tts/supertonic
+    volumes:
+      - tts-supertonic-cache:/root/.cache
+
   web:
     build: ./web
     volumes:
@@ -58,3 +72,5 @@ services:
 volumes:
   db-data:
   translator-models:
+  api-data:
+  tts-supertonic-cache:

@@ -24,5 +24,15 @@ class ModelConfig:
     base_url: str | None = None
 
 
+@dataclass
+class Usage:
+    input_tokens: int = 0
+    output_tokens: int = 0  # includes thinking tokens where the provider bills them
+
+
 class TextModel(Protocol):
+    model: str
+    # Tokens of the last completed call, as reported by the provider (for cost estimates).
+    last_usage: Usage | None
+
     async def complete(self, system: str, prompt: str, max_tokens: int = 4000) -> str: ...

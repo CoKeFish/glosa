@@ -11,11 +11,18 @@ DEFAULTS = {
     "native_language": {"value": "es"},
     # click_saves: clicking a new word means you don't know it, so it is saved as status 1
     # (LingQ's "Auto LingQ creation").
-    "reader": {"page_marks_known": True, "click_saves": True},
+    # auto_play: pronounce whatever is selected (LingQ's "Auto play text-to-speech").
+    "reader": {"page_marks_known": True, "click_saves": True, "auto_play": True},
     "review": {"session_size": 20},
+    # Voice for pronunciation: "browser" or a local engine (kokoro, supertonic, piper);
+    # voices maps "engine:language" to the chosen voice.
+    # prefer_recordings: for single words, play Wiktionary's human recordings when they exist.
+    "tts": {"engine": "kokoro", "voices": {}, "prefer_recordings": True},
     # Who translates phrases and sentences: "local" (LibreTranslate, no AI) or "ai".
     "translation": {"provider": "local"},
     "ai.text": {"provider": DEFAULT_TEXT_MODEL.provider, "model": DEFAULT_TEXT_MODEL.model, "base_url": None},
+    # Prices the reader entered for models without a known price: {model: {"input", "output"}} in USD/M tokens.
+    "ai.prices": {},
 }
 
 

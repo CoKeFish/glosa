@@ -10,12 +10,15 @@ type Props = {
   selection: Selection;
   term: Term | undefined;
   onSaved: (term: Term) => void;
+  onRemoved: (term: Term) => void;
   onSelect: (s: Selection) => void;
   onClose: () => void;
   activeGrammar: number | null;
   onGrammar: (index: number | null) => void;
   /** Save a new term as status 1 as soon as it opens: clicking it means the reader doesn't know it. */
   autoSave: boolean;
+  /** Pronounce the selection as soon as it opens. */
+  autoPlay: boolean;
 };
 
 const MAX_SUGGESTIONS = 6;
@@ -32,7 +35,7 @@ type Provider = (typeof PROVIDERS)[number];
 /** text is null when the translator could not translate it (message says why). */
 type Translations = Partial<Record<Provider, { text: string | null; message?: string }>>;
 
-export function TermPanel({ section, selection, term, onSaved, onSelect, onClose, activeGrammar, onGrammar, autoSave }: Props) {
+export function TermPanel({ section, selection, term, onSaved, onRemoved, onSelect, onClose, activeGrammar, onGrammar, autoSave, autoPlay }: Props) {
   const { t } = useI18n();
   const language = section.book.language;
   const sentenceIndex = section.tokens[selection.tokens[0]].s;
@@ -130,6 +133,18 @@ export function TermPanel({ section, selection, term, onSaved, onSelect, onClose
     }
   }
 
+  async function remove() {
+    if (!term) return;
+    try {
+      await api.deleteTerm(term.id);
+      autoMeaning.current = false;
+      setMeaning("");
+      onRemoved(term);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
   function choose(text: string) {
     // Like LingQ: picking a meaning saves the term.
     autoMeaning.current = false;
@@ -143,6 +158,23 @@ export function TermPanel({ section, selection, term, onSaved, onSelect, onClose
     save(1, "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Pronounce the selection once. A single word waits briefly for the dictionary, which may
+  // have a real recording; anything longer is spoken right away with the browser's voice.
+  const autoPlayed = useRef(!autoPlay);
+  useEffect(() => {
+    if (autoPlayed.current) return;
+    const isWord = selection.kind === "word";
+    const sayNow = () => {
+      if (autoPlayed.current) return;
+      autoPlayed.current = true;
+      play(isWord ? dict?.pronunciation?.audio[0]?.url : undefined, isWord ? surface : phraseText, language);
+    };
+    if (!isWord || dict || error) return sayNow();
+    const timer = setTimeout(sayNow, 1500); // the dictionary is slow: don't keep the reader waiting
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dict, error]);
 
   useEffect(() => {
     if (!autoMeaning.current || !dict || tooLong) return;
@@ -183,7 +215,9 @@ export function TermPanel({ section, selection, term, onSaved, onSelect, onClose
               ) : (
                 <p className="translation-text muted">{p === "local" ? t("card.localFailed") : item.message}</p>
               )}
-              {item.text && target === "phrase" && !tooLong && meaning !== item.text && (
+              {/* Hand-made selections are only for understanding; only detected units
+                  (expressions) are vocabulary, and those are already saved on click. */}
+              {item.text && target === "phrase" && selection.kind === "expression" && term && meaning !== item.text && (
                 <button className="btn-ghost" onClick={() => choose(item.text!)}>{t("card.useTranslation")}</button>
               )}
             </div>
@@ -374,7 +408,7 @@ export function TermPanel({ section, selection, term, onSaved, onSelect, onClose
           </form>
         )}
 
-        {!(isPhrase && suggestions.length === 0) && (
+        {selection.kind !== "phrase" && !(isPhrase && suggestions.length === 0) && (
           <div className="suggestions">
             <p className="field-label">{t("card.suggestions")}</p>
             {!dict && <p className="muted small">{t("card.searching")}</p>}
@@ -425,6 +459,9 @@ export function TermPanel({ section, selection, term, onSaved, onSelect, onClose
             </button>
           </div>
           <p className="status-hint">{statusHint(term, t)}</p>
+          {term && (
+            <button className="btn-ghost remove-term" onClick={remove}>{t("card.remove")}</button>
+          )}
         </div>
         )}
 

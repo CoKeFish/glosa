@@ -1,6 +1,6 @@
 import anthropic
 
-from app.ai.base import AIError, AINotConfigured
+from app.ai.base import AIError, AINotConfigured, Usage
 
 # Models that accept output_config.effort; Haiku 4.5 and older reject it.
 EFFORT_PREFIXES = ("claude-fable", "claude-mythos", "claude-opus-5", "claude-opus-4-8", "claude-opus-4-7",
@@ -9,11 +9,27 @@ EFFORT_PREFIXES = ("claude-fable", "claude-mythos", "claude-opus-5", "claude-opu
 FALLBACK_MODELS = {"claude-fable-5-1", "claude-opus-5-5", "claude-opus-5"}
 
 
+async def list_models(api_key: str | None, http_client=None) -> list[dict]:
+    """Models this key can use, newest first, as {"id", "label"}."""
+    if not api_key:
+        raise AINotConfigured("Falta la API key de Anthropic")
+    client = anthropic.AsyncAnthropic(api_key=api_key, http_client=http_client, max_retries=0)
+    try:
+        models = [m async for m in client.models.list()]
+    except anthropic.AuthenticationError as exc:
+        raise AINotConfigured("La API key de Anthropic no es válida") from exc
+    except anthropic.APIError as exc:
+        raise AIError(f"No se pudo listar los modelos de Anthropic: {exc}") from exc
+    models.sort(key=lambda m: m.created_at, reverse=True)
+    return [{"id": m.id, "label": m.display_name} for m in models]
+
+
 class AnthropicTextModel:
     def __init__(self, model: str, api_key: str | None, http_client=None):
         if not api_key:
             raise AINotConfigured("Falta la variable de entorno ANTHROPIC_API_KEY")
         self.model = model
+        self.last_usage: Usage | None = None
         self.client = anthropic.AsyncAnthropic(api_key=api_key, http_client=http_client, max_retries=0)
 
     async def complete(self, system: str, prompt: str, max_tokens: int = 4000) -> str:
@@ -44,6 +60,7 @@ class AnthropicTextModel:
         except anthropic.APIConnectionError as exc:
             raise AIError("No se pudo conectar con Anthropic") from exc
 
+        self.last_usage = Usage(response.usage.input_tokens, response.usage.output_tokens)
         if response.stop_reason == "refusal":
             raise AIError("El modelo rechazó la petición")
         return "".join(block.text for block in response.content if block.type == "text")

@@ -89,6 +89,40 @@ class AudioCache(Base):
     content_type: Mapped[str] = mapped_column(String(100))
 
 
+class SpeechCache(Base):
+    """Synthesized speech, so each (engine, voice, text) is generated once."""
+
+    __tablename__ = "speech_cache"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)  # sha256 of engine|voice|language|text
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+    content_type: Mapped[str] = mapped_column(String(50))
+
+
+class ApiKey(Base):
+    """An AI provider key entered in the app, encrypted (see app.keystore)."""
+
+    __tablename__ = "api_keys"
+
+    provider: Mapped[str] = mapped_column(String(50), primary_key=True)
+    encrypted: Mapped[str] = mapped_column(Text)
+    hint: Mapped[str] = mapped_column(String(8))  # last characters, to recognise it in the UI
+
+
+class AIUsage(Base):
+    """One AI call: tokens as reported by the provider, to estimate costs."""
+
+    __tablename__ = "ai_usage"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    provider: Mapped[str] = mapped_column(String(50))
+    model: Mapped[str] = mapped_column(String(200))
+    feature: Mapped[str] = mapped_column(String(50))  # translate, explain, expressions, grammar, test
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class Setting(Base):
     __tablename__ = "settings"
 

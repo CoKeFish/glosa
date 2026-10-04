@@ -61,17 +61,37 @@ export type Provider = {
   label: string;
   key_env: string | null;
   key_configured: boolean;
+  key_source: "env" | "saved" | null;
+  key_hint: string | null;
   default_model: string;
   default_base_url: string | null;
   base_url_editable: boolean;
 };
 
+export type UsageReport = {
+  days: number;
+  calls: number;
+  total_cost: number;
+  unpriced_calls: number;
+  model: { provider: string; model: string; price: { input: number; output: number } | null; custom: boolean };
+  features: {
+    feature: "translate" | "explain" | "expressions" | "grammar";
+    calls: number;
+    measured: boolean;
+    avg_input_tokens: number;
+    avg_output_tokens: number;
+    cost_per_call: number | null;
+  }[];
+};
+
 export type Settings = {
   ui_language: { value: string };
   native_language: { value: string };
-  reader: { page_marks_known: boolean; click_saves: boolean };
+  reader: { page_marks_known: boolean; click_saves: boolean; auto_play: boolean };
   review: { session_size: number };
   translation: { provider: "local" | "ai" };
+  "ai.prices": Record<string, { input: number; output: number }>;
+  tts: { engine: string; voices: Record<string, string>; prefer_recordings?: boolean };
   "ai.text": { provider: string; model: string; base_url: string | null };
 };
 
@@ -158,6 +178,17 @@ export const api = {
   settings: () => request<Settings>("/settings"),
   saveSettings: (s: Partial<Settings>) => request<Settings>("/settings", json("PUT", s)),
   providers: () => request<Provider[]>("/ai/providers"),
+  models: (provider: string, baseUrl: string | null) =>
+    request<{ models: { id: string; label: string }[]; recommended: string }>(
+      `/ai/models?${new URLSearchParams({ provider, ...(baseUrl ? { base_url: baseUrl } : {}) })}`,
+    ),
+  usage: () => request<UsageReport>("/ai/usage"),
+  ttsEngines: (language: string) =>
+    request<
+      { id: string; label: string; available: boolean; voices: { id: string; label: string }[]; default_voice: string }[]
+    >(`/tts/engines?language=${language}`),
+  saveKey: (provider: string, key: string) => request(`/ai/keys/${provider}`, json("PUT", { key })),
+  deleteKey: (provider: string) => request(`/ai/keys/${provider}`, { method: "DELETE" }),
   testModel: (cfg: { provider: string; model: string; base_url: string | null }) =>
     request<{ ok: boolean; sample: string }>("/ai/test", json("POST", cfg)),
 };

@@ -21,13 +21,15 @@ docker compose up -d          # web on http://localhost:5174, API on http://loca
 docker compose run --rm api pytest
 ```
 
-AI features read their API keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) from the environment, injected by [Doppler](https://www.doppler.com/) at start-up:
+AI features read their API keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`) from the environment, injected by [Doppler](https://www.doppler.com/) at start-up:
 
 ```sh
 doppler run --project shared --config dev -- docker compose up -d
 ```
 
-A plain `docker compose up` starts the app without keys; AI buttons then report the missing key, and everything else (dictionary, local translator) keeps working. Pick the provider and model under **Ajustes**: Anthropic, OpenAI, or any OpenAI-compatible server such as Ollama.
+Keys can also be pasted under **Ajustes → Modelo de IA**; they are stored encrypted (Fernet) with a master key from `GLOSA_SECRET_KEY`, or one generated in the `api-data` volume. A key from the environment takes priority. Without any key, AI buttons report it and everything else (dictionary, local translator) keeps working. Pick the provider and model in the same place: Anthropic, OpenAI, DeepSeek, or any OpenAI-compatible server such as Ollama.
+
+Pronunciation uses Wiktionary's recordings for single words and a local speech engine for everything else. Two engines run as containers and can be compared under **Ajustes → Voz**: Kokoro-82M (default, ~5 GB image) and Supertonic 3, which also covers the languages Kokoro lacks (German, Russian, Korean…). The browser's own voice is the last fallback.
 
 Phrases and sentences are translated by a local LibreTranslate container by default (no AI, works offline after its first start downloads the models); the AI can be chosen instead in **Ajustes**.
 

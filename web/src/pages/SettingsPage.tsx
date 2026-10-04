@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, Provider, Settings } from "../api";
+import { UsageCard } from "../components/UsageCard";
+import { VoiceCard } from "../components/VoiceCard";
 import { UI_LANGUAGES, useI18n } from "../i18n";
 
 // Languages meanings and explanations can be written in. Grammar explanations exist in
@@ -13,17 +15,46 @@ const MEANING_LANGUAGES = [
   { code: "it", name: "Italiano" },
 ];
 
+const CUSTOM = "__custom__";
+
 export function SettingsPage() {
   const { t, setUiLanguage } = useI18n();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [message, setMessage] = useState("");
   const [testing, setTesting] = useState(false);
+  const [keyInput, setKeyInput] = useState("");
+  const [models, setModels] = useState<{ list: { id: string; label: string }[]; recommended: string } | null>(null);
+  const [modelsError, setModelsError] = useState("");
+  const [customModel, setCustomModel] = useState(false);
+  // Bumped on save: the usage card estimates costs for the saved model.
+  const [savedModel, setSavedModel] = useState(0);
 
   useEffect(() => {
     api.settings().then(setSettings);
     api.providers().then(setProviders);
   }, []);
+
+  // Ask the provider which models the key (or local server) offers, whenever that can change.
+  const providerId = settings?.["ai.text"].provider;
+  const baseUrl = settings?.["ai.text"].base_url ?? null;
+  const keyState = providers.find((p) => p.id === providerId)?.key_source;
+  useEffect(() => {
+    if (!providerId) return;
+    let cancelled = false;
+    setModels(null);
+    setModelsError("");
+    const timer = setTimeout(() => {
+      api
+        .models(providerId, baseUrl)
+        .then((r) => !cancelled && setModels({ list: r.models, recommended: r.recommended }))
+        .catch((e) => !cancelled && setModelsError(t("set.modelsUnavailable", { reason: (e as Error).message })));
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [providerId, baseUrl, keyState, t]);
 
   if (!settings) return <div className="page narrow muted">{t("loading")}</div>;
   const ai = settings["ai.text"];
@@ -33,6 +64,7 @@ export function SettingsPage() {
 
   function chooseProvider(id: string) {
     const p = providers.find((x) => x.id === id);
+    setCustomModel(false);
     update("ai.text", { provider: id, model: p?.default_model ?? "", base_url: p?.default_base_url ?? null });
   }
 
@@ -40,11 +72,30 @@ export function SettingsPage() {
     try {
       const saved = await api.saveSettings(settings!);
       setSettings(saved);
+      setSavedModel((n) => n + 1);
       setUiLanguage(saved.ui_language.value);
       setMessage(t("set.saved"));
     } catch (e) {
       setMessage((e as Error).message);
     }
+  }
+
+  async function saveKey() {
+    if (!provider) return;
+    try {
+      await api.saveKey(provider.id, keyInput);
+      setKeyInput("");
+      setProviders(await api.providers());
+      setMessage(t("set.keyStored"));
+    } catch (e) {
+      setMessage((e as Error).message);
+    }
+  }
+
+  async function removeKey() {
+    if (!provider) return;
+    await api.deleteKey(provider.id);
+    setProviders(await api.providers());
   }
 
   async function test() {
@@ -80,17 +131,27 @@ export function SettingsPage() {
             <span className="muted small" style={{ fontWeight: 400 }}>{t("set.meaningHelp")}</span>
           </label>
           <p className="muted small" style={{ margin: 0 }}>{t("set.studyHelp")}</p>
-          <label>
-            {t("set.translator")}
-            <select
-              value={settings.translation.provider}
-              onChange={(e) => update("translation", { provider: e.target.value as "local" | "ai" })}
-            >
-              <option value="local">{t("set.translatorLocal")}</option>
-              <option value="ai">{t("set.translatorAi")}</option>
-            </select>
-            <span className="muted small" style={{ fontWeight: 400 }}>{t("set.translatorHelp")}</span>
-          </label>
+        </section>
+
+        <section className="card">
+          <h2>{t("set.translation")}</h2>
+          <div className="choice-cards">
+            {(["local", "ai"] as const).map((p) => (
+              <label key={p} className={`choice-card ${settings.translation.provider === p ? "on" : ""}`}>
+                <input
+                  type="radio"
+                  name="translator"
+                  checked={settings.translation.provider === p}
+                  onChange={() => update("translation", { provider: p })}
+                />
+                <strong>{t(p === "local" ? "set.translatorLocal" : "set.translatorAi")}</strong>
+                <span className="muted small">{t(p === "local" ? "set.translatorLocalHelp" : "set.translatorAiHelp")}</span>
+              </label>
+            ))}
+          </div>
+          {settings.translation.provider === "ai" && !provider?.key_configured && provider?.key_env && (
+            <p className="warn small" style={{ margin: 0 }}>{t("set.aiNeedsKey")}</p>
+          )}
         </section>
 
         <section className="card">
@@ -110,6 +171,14 @@ export function SettingsPage() {
               onChange={(e) => update("reader", { ...settings.reader, click_saves: e.target.checked })}
             />
             {t("set.clickSaves")}
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={settings.reader.auto_play}
+              onChange={(e) => update("reader", { ...settings.reader, auto_play: e.target.checked })}
+            />
+            {t("set.autoPlay")}
           </label>
           <label>
             {t("set.sessionSize")}
@@ -133,13 +202,70 @@ export function SettingsPage() {
             </select>
           </label>
           {provider?.key_env && (
-            <span className={`key-status ${provider.key_configured ? "ok" : "warn"}`}>
-              {t(provider.key_configured ? "set.keyOk" : "set.keyMissing", { key: provider.key_env })}
-            </span>
+            <div className="key-field">
+              <p className="field-label">{t("set.apiKey")}</p>
+              {provider.key_source === "env" ? (
+                <span className="key-status ok">{t("set.keyFromEnv", { key: provider.key_env })}</span>
+              ) : provider.key_source === "saved" ? (
+                <div className="key-row">
+                  <span className="key-status ok">{t("set.keySaved", { hint: provider.key_hint ?? "" })}</span>
+                  <button className="btn-ghost" onClick={removeKey}>{t("set.keyRemove")}</button>
+                </div>
+              ) : (
+                <span className="key-status warn">{t("set.keyMissing", { key: provider.key_env })}</span>
+              )}
+              {provider.key_source !== "env" && (
+                <form
+                  className="key-row"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    saveKey();
+                  }}
+                >
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    placeholder={provider.key_source === "saved" ? t("set.keyReplace") : t("set.keyPaste")}
+                    value={keyInput}
+                    onChange={(e) => setKeyInput(e.target.value)}
+                  />
+                  <button disabled={!keyInput.trim()}>{t("set.keySave")}</button>
+                </form>
+              )}
+              {provider.key_source !== "env" && <span className="muted small">{t("set.keyHelp")}</span>}
+            </div>
           )}
           <label>
             {t("set.model")}
-            <input value={ai.model} placeholder="claude-opus-5-5, llama3.1…" onChange={(e) => update("ai.text", { ...ai, model: e.target.value })} />
+            {models && !customModel ? (
+              <select
+                value={ai.model}
+                onChange={(e) =>
+                  e.target.value === CUSTOM ? setCustomModel(true) : update("ai.text", { ...ai, model: e.target.value })
+                }
+              >
+                {!models.list.some((m) => m.id === ai.model) && ai.model && <option value={ai.model}>{ai.model}</option>}
+                {!ai.model && <option value="">{t("set.modelPick")}</option>}
+                {models.list.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}{m.id === models.recommended ? ` — ${t("set.recommended")}` : ""}
+                  </option>
+                ))}
+                <option value={CUSTOM}>{t("set.modelOther")}</option>
+              </select>
+            ) : (
+              <input
+                value={ai.model}
+                placeholder="claude-opus-5-5, llama3.1…"
+                onChange={(e) => update("ai.text", { ...ai, model: e.target.value })}
+              />
+            )}
+            {modelsError && <span className="warn small" style={{ fontWeight: 400 }}>{modelsError}</span>}
+            {customModel && models && (
+              <button type="button" className="btn-ghost" style={{ alignSelf: "flex-start" }} onClick={() => setCustomModel(false)}>
+                {t("set.modelBackToList")}
+              </button>
+            )}
           </label>
           {provider?.base_url_editable && (
             <label>
@@ -148,6 +274,16 @@ export function SettingsPage() {
             </label>
           )}
         </section>
+
+        <VoiceCard settings={settings} onChange={(tts) => update("tts", tts)} />
+
+        <UsageCard
+          settings={settings}
+          modelKey={`${ai.provider}/${ai.model}/${savedModel}`}
+          onPrice={(model, price) =>
+            price && update("ai.prices", { ...settings["ai.prices"], [model]: price })
+          }
+        />
 
         <div className="actions">
           <button onClick={save}>{t("set.save")}</button>

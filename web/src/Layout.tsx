@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import { api } from "./api";
 import { useI18n } from "./i18n";
+import { configureVoice } from "./speech";
 
 type LanguageContext = { language: string; setLanguage: (code: string) => void; languages: { code: string; name: string }[] };
 const Ctx = createContext<LanguageContext>({ language: "en", setLanguage: () => {}, languages: [] });
@@ -23,6 +24,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     api.languages().then(setLanguages).catch(() => {});
+    api.settings().then((s) => configureVoice(s.tts)).catch(() => {});
   }, []);
 
   const setLanguage = (code: string) => {
