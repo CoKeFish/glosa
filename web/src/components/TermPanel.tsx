@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api, DictionaryResult, IGNORED, KNOWN, Section, Term } from "../api";
 import { useI18n } from "../i18n";
-import { Ban, Check, Close, External, Sparkle } from "../icons";
+import { Ban, Check, Close, External, Speaker, Sparkle } from "../icons";
+import { play, speak } from "../speech";
 import { MAX_SAVED_PHRASE_WORDS, Selection, selectionText, sentenceText } from "../reading";
 
 type Props = {
@@ -254,6 +255,12 @@ export function TermPanel({ section, selection, term, onSaved, onSelect, onClose
       } else if (e.key === "h") {
         e.preventDefault();
         meaningRef.current?.focus();
+      } else if (e.key === "s") {
+        e.preventDefault();
+        sayTerm();
+      } else if (e.key === "a") {
+        e.preventDefault();
+        saySentence();
       }
     }
     window.addEventListener("keydown", onKey);
@@ -285,10 +292,22 @@ export function TermPanel({ section, selection, term, onSaved, onSelect, onClose
     !!phraseTranslations.local && !phraseTranslations.local.text && !phraseTranslations.ai;
   const statusTitle = (s: number) => t(`card.status.${s}` as "card.status.1");
 
+  const spoken = isPhrase || selection.kind === "phrasal_verb" ? phraseText : surface;
+  const recording = dict?.pronunciation?.audio[0]?.url;
+  const ipa = dict?.pronunciation?.ipa[0];
+  const sayTerm = () => play(selection.kind === "word" ? recording : undefined, spoken, language);
+  const saySentence = () => speak(context, language);
+
   return (
     <div className="word-card">
       <div className="word-card-head">
-        <h2>{title}</h2>
+        <button className="icon-btn speak-btn" aria-label={t("card.listen")} title={`${t("card.listen")} (S)`} onClick={sayTerm}>
+          <Speaker />
+        </button>
+        <h2>
+          {title}
+          {ipa && selection.kind === "word" && <span className="ipa">{ipa}</span>}
+        </h2>
         {tooLong || !term ? null : term.status === KNOWN ? (
           <span className="status-pill known"><Check size={13} /> {t("card.iKnowIt")}</span>
         ) : term.status === IGNORED ? (
@@ -418,7 +437,12 @@ export function TermPanel({ section, selection, term, onSaved, onSelect, onClose
       </div>
 
       <div className="panel-section">
-        <h3>{t("card.sentence")}</h3>
+        <h3 className="with-action">
+          {t("card.sentence")}
+          <button className="icon-btn" aria-label={t("card.listenSentence")} title={`${t("card.listenSentence")} (A)`} onClick={saySentence}>
+            <Speaker size={18} />
+          </button>
+        </h3>
         <p className="sentence">{context}</p>
         <div className="translation-box">
           <TranslationList target="sentence" items={sentenceTranslations} />

@@ -18,6 +18,8 @@ const SHORTCUTS = [
   ["K", "key.known"],
   ["X", "key.ignore"],
   ["H", "key.meaning"],
+  ["S", "key.listen"],
+  ["A", "key.listenSentence"],
   ["← →", "key.move"],
   ["B", "key.nextNew"],
   ["Esc", "key.close"],

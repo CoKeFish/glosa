@@ -94,6 +94,29 @@ async def _translated_definitions(results: list[dict], usage: ranking.Usage, mea
     return candidates
 
 
+def _pronunciation(results: list[dict], usage: ranking.Usage, surface: str, best: dict | None) -> dict | None:
+    """IPA and recordings for the word as written, from the sense that fits the sentence.
+
+    Only entries of the surface form itself count: "led" must not play "lead". Pronunciation
+    follows etymology ("lead" the metal /lɛd/, "lead" to guide /liːd/), and Wiktionary lists it
+    once per etymology, so the etymology of the best-fitting translation decides; failing
+    that, the part of speech used in the sentence.
+    """
+    entries = [e for r in results if r["term"] == surface for e in r["entries"]]
+    if not entries:
+        return None
+    if best and best.get("term") == surface:
+        etymology = best.get("etymology")
+    else:
+        by_pos = sorted(entries, key=lambda e: e["part_of_speech"] != usage.pos)
+        etymology = by_pos[0].get("etymology")
+    candidates = sorted(entries, key=lambda e: (e.get("etymology") != etymology, not e.get("audio"), not e.get("ipa")))
+    chosen = candidates[0]
+    if not chosen.get("ipa") and not chosen.get("audio"):
+        return None
+    return {"ipa": chosen.get("ipa", []), "audio": chosen.get("audio", [])}
+
+
 async def lookup(
     session: Session,
     language: str,
@@ -134,7 +157,8 @@ async def lookup(
             for entry in entries:
                 for t in entry["translations"]:
                     candidates.append({**t, "term": term, "word": entry.get("word") or term,
-                                       "part_of_speech": entry["part_of_speech"], "forms": entry.get("forms", [])})
+                                       "part_of_speech": entry["part_of_speech"], "forms": entry.get("forms", []),
+                                       "etymology": entry.get("etymology", 0)})
                 if len(seen) < 4:
                     pending.extend(f.lower() for f in entry["form_of"])
 
@@ -155,6 +179,7 @@ async def lookup(
 
     links = [{"name": link.name, "url": link.url(terms[0])} for link in pack.dictionary_links(meaning_language)] if terms else []
     return {
+        "pronunciation": _pronunciation(results, usage, surface, ranked[0] if ranked else None),
         "translations": unique,
         "sentence_translation": context_translation,
         "usage": {"pos": usage.pos, "transitive": usage.transitive},

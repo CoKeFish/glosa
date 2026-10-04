@@ -48,6 +48,7 @@ export type Book = {
 };
 
 export type DictionaryResult = {
+  pronunciation: { ipa: string[]; audio: { url: string; accent: string }[] } | null;
   translations: { text: string; sense: string; term: string; part_of_speech: string; score: number; fits: boolean }[];
   sentence_translation: string;
   results: { term: string; source: string; entries: { part_of_speech: string; definitions: string[]; examples: string[] }[] }[];

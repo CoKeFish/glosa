@@ -23,6 +23,11 @@ class DictionaryEntry:
     word: str = ""
     # Inflections of this entry ("led" for lead/guide, "leaded" for lead/metal).
     forms: list[str] = field(default_factory=list)
+    # Pronunciation of this entry: it differs between entries ("lead" the metal vs to lead).
+    ipa: list[str] = field(default_factory=list)
+    audio: list[dict] = field(default_factory=list)  # {"url": ..., "accent": "US" | "UK" | ...}
+    # Entries of the same word and etymology share a pronunciation, which Wiktionary lists once.
+    etymology: int = 0
 
     def to_dict(self) -> dict:
         return asdict(self)

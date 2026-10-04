@@ -1,6 +1,7 @@
 """Languages, dictionaries, AI and settings."""
 
-from fastapi import APIRouter, Depends, HTTPException
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,7 @@ from app.ai.base import AIError, AINotConfigured, ModelConfig
 from app.ai.registry import PROVIDERS, build_text_model, describe_providers
 from app.db import get_session
 from app.dictionary import service as dictionary_service
+from app.models import AudioCache
 from app.routers.common import require_language
 from app.translation import AITranslator, LocalTranslator, TranslationError, Untranslated
 
@@ -55,6 +57,32 @@ async def translate_text(body: TranslateTextIn, session: Session = Depends(get_s
     except TranslationError as exc:
         raise HTTPException(502, str(exc))
     return {"translation": text, "provider": translator.id}
+
+
+AUDIO_HOST = "https://upload.wikimedia.org/"
+AUDIO_HEADERS = {"User-Agent": "glosa/0.1 (https://github.com/CoKeFish/glosa) python-httpx"}
+
+
+@router.get("/audio")
+async def audio(url: str, session: Session = Depends(get_session)):
+    """Serve a pronunciation recording from Wikimedia Commons through the API: same origin for
+    the browser, downloaded once, then available offline."""
+    if not url.startswith(AUDIO_HOST):
+        raise HTTPException(400, "Solo se sirven grabaciones de Wikimedia Commons")
+    cached = session.get(AudioCache, url)
+    if cached is None:
+        try:
+            async with httpx.AsyncClient(timeout=20, headers=AUDIO_HEADERS, follow_redirects=True) as client:
+                resp = await client.get(url)
+        except httpx.HTTPError as exc:
+            raise HTTPException(502, f"No se pudo descargar el audio: {exc}")
+        if resp.status_code != 200:
+            raise HTTPException(502, f"Wikimedia devolvió {resp.status_code}")
+        cached = AudioCache(url=url, content=resp.content, content_type=resp.headers.get("content-type", "audio/mpeg"))
+        session.merge(cached)
+        session.commit()
+    return Response(cached.content, media_type=cached.content_type,
+                    headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @router.get("/settings")

@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { api, Term } from "../api";
 import { useI18n } from "../i18n";
+import { Speaker } from "../icons";
 import { useStudyLanguage } from "../Layout";
+import { speak } from "../speech";
 
 export function Review() {
   const { t } = useI18n();
@@ -30,7 +32,8 @@ export function Review() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (!card) return;
-      if (e.key === " " && !revealed) {
+      if (e.key === "s") speak(card.key, language);
+      else if (e.key === " " && !revealed) {
         e.preventDefault();
         setRevealed(true);
       } else if (revealed && e.key === "1") answer(false);
@@ -60,7 +63,19 @@ export function Review() {
         <span>{t("review.completed", { n: done })}</span>
       </div>
       <div className="flashcard" onClick={() => setRevealed(true)}>
-        <p className="term">{card.key}</p>
+        <p className="term">
+          {card.key}{" "}
+          <button
+            className="icon-btn speak-btn"
+            aria-label={t("card.listen")}
+            onClick={(e) => {
+              e.stopPropagation();
+              speak(card.key, language);
+            }}
+          >
+            <Speaker />
+          </button>
+        </p>
         {card.kind !== "word" && (
           <div>
             <span className={`tag ${card.kind === "phrasal_verb" ? "phrasal" : card.kind === "expression" ? "expression" : "phrase"}`}>

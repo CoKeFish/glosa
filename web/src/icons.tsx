@@ -13,4 +13,6 @@ export const Cards = ({ size = 26 }: P) =>
   svg(size, <><rect x="7" y="4" width="12" height="16" rx="2" /><path d="M5 7.5v10.5a2 2 0 002 2h9" /></>, 1.5);
 export const Sparkle = ({ size = 16 }: P) =>
   svg(size, <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />, 1.6);
+export const Speaker = ({ size = 20 }: P) =>
+  svg(size, <><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" /><path d="M15.5 9a4 4 0 010 6M18 6.5a7.5 7.5 0 010 11" /></>, 1.7);
 export const External = ({ size = 13 }: P) => svg(size, <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" />, 1.8);

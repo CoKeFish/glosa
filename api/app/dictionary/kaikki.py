@@ -65,6 +65,7 @@ def parse_lines(lines: list[dict], meaning_language: str) -> list[DictionaryEntr
             f["form"] for f in d.get("forms", [])
             if f.get("form") and not SKIP_FORM_TAGS & set(f.get("tags", []))
         ]
+        ipa, audio = _sounds(d.get("sounds", []))
         if definitions or translations:
             entries.append(
                 DictionaryEntry(
@@ -75,9 +76,35 @@ def parse_lines(lines: list[dict], meaning_language: str) -> list[DictionaryEntr
                     form_of=list(dict.fromkeys(form_of)),
                     word=d.get("word", ""),
                     forms=list(dict.fromkeys(forms)),
+                    ipa=ipa,
+                    audio=audio,
+                    etymology=d.get("etymology_number", 0) or 0,
                 )
             )
     return entries
+
+
+US_TAGS = {"US", "General-American"}
+UK_TAGS = {"UK", "Received-Pronunciation", "Southern-England"}
+
+
+def _accent(tags: list[str]) -> str:
+    if US_TAGS & set(tags):
+        return "US"
+    if UK_TAGS & set(tags):
+        return "UK"
+    return tags[0] if tags else ""
+
+
+def _sounds(sounds: list[dict]) -> tuple[list[str], list[dict]]:
+    """IPA transcriptions and recorded audio (Wikimedia Commons), American first."""
+    ipa = list(dict.fromkeys(s["ipa"] for s in sounds if s.get("ipa", "").startswith("/")))
+    audio = [
+        {"url": s.get("mp3_url") or s["ogg_url"], "accent": _accent(s.get("tags", []))}
+        for s in sounds if s.get("mp3_url") or s.get("ogg_url")
+    ]
+    audio.sort(key=lambda a: {"US": 0, "UK": 1}.get(a["accent"], 2))
+    return ipa[:2], audio[:3]
 
 
 class KaikkiDictionary:
@@ -85,7 +112,7 @@ class KaikkiDictionary:
 
     def __init__(self, language_code: str, language_name: str):
         # Bump the version suffix when the cached shape changes.
-        self.id = f"kaikki2-{language_code}"
+        self.id = f"kaikki4-{language_code}"
         self.language_name = language_name
 
     async def lookup(self, term: str, meaning_language: str) -> list[DictionaryEntry]:

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -77,6 +77,16 @@ class DictionaryCache(Base):
     key: Mapped[str] = mapped_column(String(400), primary_key=True)
     entries: Mapped[list] = mapped_column(JSON)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class AudioCache(Base):
+    """Pronunciation recordings fetched from Wikimedia Commons, kept so each is downloaded once."""
+
+    __tablename__ = "audio_cache"
+
+    url: Mapped[str] = mapped_column(String(600), primary_key=True)
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+    content_type: Mapped[str] = mapped_column(String(100))
 
 
 class Setting(Base):
