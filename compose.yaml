@@ -1,0 +1,60 @@
+name: glosa
+
+# API keys are read from the environment. Run with Doppler to inject them:
+#   doppler run -- docker compose up -d
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: glosa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-glosa}
+      POSTGRES_DB: glosa
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glosa"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgresql+psycopg://glosa:${POSTGRES_PASSWORD:-glosa}@db:5432/glosa
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
+      TRANSLATOR_URL: http://translator:5000
+    volumes:
+      - ./api/app:/app/app
+      - ./api/tests:/app/tests
+    ports:
+      - "8001:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # reach Ollama / LM Studio on the host
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Local machine translation (Argos Translate), no AI service or internet needed after the
+  # first start downloads the models. Add language codes to LT_LOAD_ONLY to support more pairs.
+  translator:
+    image: libretranslate/libretranslate:latest
+    environment:
+      LT_LOAD_ONLY: en,es
+    volumes:
+      - translator-models:/home/libretranslate/.local
+
+  web:
+    build: ./web
+    volumes:
+      - ./web/src:/app/src
+      - ./web/index.html:/app/index.html
+      - ./web/vite.config.ts:/app/vite.config.ts
+    ports:
+      - "5174:5173"
+    depends_on:
+      - api
+
+volumes:
+  db-data:
+  translator-models:

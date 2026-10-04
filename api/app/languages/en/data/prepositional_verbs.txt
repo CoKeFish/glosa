@@ -1,0 +1,88 @@
+# Verbs whose meaning changes with a following preposition or adverb that
+# spaCy tags as a preposition, not as a verb particle. Particle phrasal verbs
+# ("turn off", "give up") are found by the parser and do not need to be here.
+#
+# Only idiomatic combinations: "look up the chimney" must stay literal, so an
+# entry belongs here only when the literal reading is rare.
+# One per line, verb in base form, lowercase.
+ask after
+break into
+bring about
+call for
+call on
+care for
+carry on with
+catch up on
+catch up with
+check up on
+come across
+come by
+come down with
+come into
+come up against
+come up with
+count on
+cut down on
+do without
+drop out of
+face up to
+fall for
+fall back on
+fall behind with
+get along with
+get around to
+get at
+get away with
+get by on
+get down to
+get on with
+get out of
+get over
+get round to
+get through
+give in to
+go about
+go against
+go for
+go into
+go through
+go with
+go without
+grow out of
+hear from
+hear of
+keep up with
+lay into
+live on
+live up to
+look after
+look down on
+look for
+look forward to
+look into
+look out for
+look up to
+make for
+make up for
+own up to
+pick on
+put up with
+run across
+run into
+run out of
+see through
+send for
+set about
+settle for
+stand by
+stand for
+stand up for
+stand up to
+take after
+take to
+talk down to
+tell on
+think of
+turn into
+turn to
+wait on
