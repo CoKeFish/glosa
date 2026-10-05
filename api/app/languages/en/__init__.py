@@ -4,7 +4,7 @@ from pathlib import Path
 import spacy
 
 from app.dictionary.base import Dictionary, DictionaryLink
-from app.dictionary.kaikki import KaikkiDictionary
+from app.dictionary.kaikki import KaikkiDictionary, NativeWiktionary
 from app.dictionary.ranking import Usage
 from app.languages.base import Analysis, GrammarType
 from app.languages.en.grammar import GRAMMAR_TYPES, detect_grammar
@@ -96,7 +96,9 @@ class EnglishPack:
         return GRAMMAR_TYPES.get(explanation_language, GRAMMAR_TYPES["en"])
 
     def dictionaries(self) -> list[Dictionary]:
-        return [KaikkiDictionary("en", "English")]
+        # The English Wiktionary first (translation tables, forms, pronunciation), then the one
+        # written in the reader's language for the meanings the first lacks.
+        return [KaikkiDictionary("en", "English"), NativeWiktionary("en")]
 
     def dictionary_links(self, native_language: str) -> list[DictionaryLink]:
         links = [DictionaryLink("Cambridge", "https://dictionary.cambridge.org/dictionary/english/{term}")]

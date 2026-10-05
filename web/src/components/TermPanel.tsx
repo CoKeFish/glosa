@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, DictionaryResult, IGNORED, KNOWN, Section, Term } from "../api";
+import { api, DictionaryResult, IGNORED, KNOWN, Section, Term, Translator } from "../api";
 import { useI18n } from "../i18n";
 import { Ban, Check, Close, External, Speaker, Sparkle } from "../icons";
 import { play, speak } from "../speech";
@@ -30,8 +30,10 @@ function statusHint(term: Term | undefined, t: ReturnType<typeof useI18n>["t"]):
   if (term.status === IGNORED) return t("card.hint.ignored");
   return t(`card.hint.${term.status}` as "card.hint.1");
 }
-const PROVIDERS = ["local", "ai"] as const;
-type Provider = (typeof PROVIDERS)[number];
+const PROVIDERS: Provider[] = ["llm", "local", "ai"];
+type Provider = Translator;
+const PROVIDER_LABEL = { llm: "card.byLlm", local: "card.byLocal", ai: "card.byAi" } as const;
+const PROVIDER_ACTION = { llm: "card.translateLlm", local: "card.translateLocal", ai: "card.translateAi" } as const;
 /** text is null when the translator could not translate it (message says why). */
 type Translations = Partial<Record<Provider, { text: string | null; message?: string }>>;
 
@@ -91,7 +93,7 @@ export function TermPanel({ section, selection, term, onSaved, onRemoved, onSele
     }
     if (isPhrase) {
       api
-        .translateText(language, phraseText)
+        .translateText(language, phraseText, undefined, context)
         .then((r) => !cancelled && setPhraseTranslations({ [r.provider]: { text: r.translation, message: r.message } }))
         .catch((e) => !cancelled && setError(e.message));
     }
@@ -104,7 +106,9 @@ export function TermPanel({ section, selection, term, onSaved, onRemoved, onSele
     setTranslating(`${target}:${provider}`);
     setError("");
     try {
-      const r = await api.translateText(language, target === "phrase" ? phraseText : context, provider);
+      const r = target === "phrase"
+        ? await api.translateText(language, phraseText, provider, context)
+        : await api.translateText(language, context, provider);
       (target === "phrase" ? setPhraseTranslations : setSentenceTranslations)((p) => ({
         ...p,
         [r.provider]: { text: r.translation, message: r.message },
@@ -209,7 +213,7 @@ export function TermPanel({ section, selection, term, onSaved, onRemoved, onSele
           const item = items[p]!;
           return (
             <div key={p} className="translation-item">
-              <span className="translation-source">{p === "local" ? t("card.byLocal") : t("card.byAi")}</span>
+              <span className="translation-source">{t(PROVIDER_LABEL[p])}</span>
               {item.text ? (
                 <p className="translation-text">{item.text}</p>
               ) : (
@@ -227,9 +231,7 @@ export function TermPanel({ section, selection, term, onSaved, onRemoved, onSele
           {missing.map((p) => (
             <button key={p} className="ai-btn" disabled={translating !== null} onClick={() => translateWith(target, p)}>
               {p === "ai" && <Sparkle />}
-              {translating === `${target}:${p}`
-                ? t("card.translating")
-                : t(p === "ai" ? "card.translateAi" : "card.translateLocal")}
+              {translating === `${target}:${p}` ? t("card.translating") : t(PROVIDER_ACTION[p])}
             </button>
           ))}
         </div>

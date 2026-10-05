@@ -24,6 +24,44 @@ def test_sentence_translation_picks_the_sense():
     assert ranked[0]["text"] == "correr"
 
 
+def test_partial_match_on_the_verb_beats_no_match():
+    lie_untruth = {"text": "mentir", "sense": "tell an intentional untruth", "word": "lie", "part_of_speech": "verb",
+                   "forms": ["lies", "lied"]}
+    lie_situated = {"text": "estar ubicado", "sense": "be situated", "word": "lie", "part_of_speech": "verb",
+                    "forms": ["lies", "lay", "lain"]}
+    ranked = rank([lie_untruth, lie_situated], surface="lie", usage=Usage(pos="verb"),
+                  context="phenomena which lie outside its common experience",
+                  context_translation="fenómenos que están fuera de su experiencia común")
+    assert ranked[0]["text"] == "estar ubicado"
+
+
+def test_part_of_speech_used_in_the_sentence_wins():
+    slang = {"text": "piba", "sense": "(slang) woman or girl", "word": "broad", "part_of_speech": "noun", "forms": []}
+    wide = {"text": "amplio en extensión", "sense": "Wide in extent or scope.", "word": "broad",
+            "part_of_speech": "adj", "forms": ["broader"], "from_definition": True}
+    ranked = rank([slang, wide], surface="broader", usage=Usage(pos="adj"),
+                  context="Men of broader intellect know", context_translation="Los hombres de intelecto más amplio saben")
+    assert ranked[0]["text"] == "amplio en extensión"
+
+
+def test_comparative_form_gets_its_own_meaning():
+    wide = {"text": "abierto", "sense": "Extended; open.", "word": "broad", "term": "broad",
+            "part_of_speech": "adj", "forms": ["broader"], "from_definition": True}
+    more = {"text": "más amplio", "sense": "comparative form of broad: more broad", "word": "broader",
+            "term": "broader", "part_of_speech": "adj", "forms": [], "from_definition": True, "degree_form": True}
+    ranked = rank([wide, more], surface="broader", usage=Usage(pos="adj"), context="Men of broader intellect know")
+    assert ranked[0]["text"] == "más amplio"
+
+
+def test_stem_needs_a_real_ending():
+    assert not _appears_in("mentir", "en su visión mental")  # "mental" is not a form of "mentir"
+    assert _appears_in("mentir", "me mintió") is False  # stem change: not detected, but no false match
+    assert _appears_in("mentir", "nos mienten") is False
+    assert _appears_in("mentir", "le estaba mintiendo") is False
+    assert _appears_in("duda", "tengo dudas")
+    assert _appears_in("correr", "los niños corren a la escuela")
+
+
 def test_inflected_and_multiword_matching():
     assert _appears_in("llevar", "las circunstancias que han llevado a mi confinamiento")
     assert _appears_in("llevar a", "que han llevado a mi confinamiento")

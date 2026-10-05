@@ -95,6 +95,14 @@ async def find_expressions(model: TextModel, *, language: str, native: str, sent
     return result
 
 
-async def translate(model: TextModel, *, language: str, native: str, text: str) -> str:
+language_name = _name
+
+
+async def translate(model: TextModel, *, language: str, native: str, text: str, context: str = "") -> str:
     system = f"Translate {_name(language)} to {_name(native)}. Reply with the translation only."
+    if context and text.strip() != context.strip():
+        # Without the sentence, "In relating" reads as "Al relacionar"; with it, "Al relatar".
+        prompt = (f"Sentence: {context}\n\nTranslate only this fragment, with the meaning it has in that "
+                  f"sentence: \"{text}\"")
+        return (await model.complete(system, prompt)).strip().strip('"')
     return (await model.complete(system, text)).strip()

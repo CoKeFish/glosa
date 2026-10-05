@@ -20,6 +20,8 @@ class DictionaryEntry:
     translations: list[Translation] = field(default_factory=list)
     # When the term is an inflected form ("led"), the base forms it comes from ("lead").
     form_of: list[str] = field(default_factory=list)
+    # Words this entry only refers to: "upon" is "alternative to on", "whilst" points to "while".
+    see: list[str] = field(default_factory=list)
     word: str = ""
     # Inflections of this entry ("led" for lead/guide, "leaded" for lead/metal).
     forms: list[str] = field(default_factory=list)

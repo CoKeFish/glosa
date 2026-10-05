@@ -89,11 +89,14 @@ export type Settings = {
   native_language: { value: string };
   reader: { page_marks_known: boolean; click_saves: boolean; auto_play: boolean };
   review: { session_size: number };
-  translation: { provider: "local" | "ai" };
+  translation: { provider: Translator; llm_model: string; use_gpu: boolean };
   "ai.prices": Record<string, { input: number; output: number }>;
   tts: { engine: string; voices: Record<string, string>; prefer_recordings?: boolean };
   "ai.text": { provider: string; model: string; base_url: string | null };
 };
+
+/** llm: translation model in Ollama; local: LibreTranslate; ai: the configured AI model. */
+export type Translator = "llm" | "local" | "ai";
 
 export const IGNORED = -1;
 export const KNOWN = 5;
@@ -157,11 +160,14 @@ export const api = {
         ...(q.lemma && q.lemma !== q.term ? { lemma: q.lemma } : {}),
       })}`,
     ),
-  translateText: (language: string, text: string, provider?: "local" | "ai") =>
-    request<{ translation: string | null; provider: "local" | "ai"; message?: string }>(
+  /** context: the sentence the text comes from, so the translator picks the sense it has there. */
+  translateText: (language: string, text: string, provider?: Translator, context = "") =>
+    request<{ translation: string | null; provider: Translator; message?: string }>(
       "/translate",
-      json("POST", { language, text, provider }),
+      json("POST", { language, text, provider, context }),
     ),
+  translationModels: () =>
+    request<{ available: boolean; models: string[]; recommended: string }>("/translation/models"),
   findExpressions: (language: string, sentence: string, known: string[]) =>
     request<{ expressions: { text: string; base: string; meaning: string }[] }>(
       "/ai/expressions",
@@ -172,8 +178,6 @@ export const api = {
   reanalyze: (bookId: number) => request<{ sections: number }>(`/books/${bookId}/reanalyze`, { method: "POST" }),
   explain: (body: { language: string; term: string; kind: TermKind; context: string }) =>
     request<{ translation: string; explanation: string; is_phrasal_verb: boolean }>("/ai/explain", json("POST", body)),
-  translate: (language: string, text: string) =>
-    request<{ translation: string }>("/ai/translate", json("POST", { language, text })),
 
   settings: () => request<Settings>("/settings"),
   saveSettings: (s: Partial<Settings>) => request<Settings>("/settings", json("PUT", s)),

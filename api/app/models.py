@@ -99,6 +99,17 @@ class SpeechCache(Base):
     content_type: Mapped[str] = mapped_column(String(50))
 
 
+class TranslationCache(Base):
+    """Translations already made, so the same text is never translated (or paid for) twice."""
+
+    __tablename__ = "translation_cache"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)  # sha256 of translator|source|target|text
+    translator: Mapped[str] = mapped_column(String(120))  # "local", or "ai:<provider>:<model>"
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class ApiKey(Base):
     """An AI provider key entered in the app, encrypted (see app.keystore)."""
 

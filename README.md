@@ -31,7 +31,9 @@ Keys can also be pasted under **Ajustes → Modelo de IA**; they are stored encr
 
 Pronunciation uses Wiktionary's recordings for single words and a local speech engine for everything else. Two engines run as containers and can be compared under **Ajustes → Voz**: Kokoro-82M (default, ~5 GB image) and Supertonic 3, which also covers the languages Kokoro lacks (German, Russian, Korean…). The browser's own voice is the last fallback.
 
-Phrases and sentences are translated by a local LibreTranslate container by default (no AI, works offline after its first start downloads the models); the AI can be chosen instead in **Ajustes**.
+Phrases and sentences are translated by default by a translation model running in [Ollama](https://ollama.com) on the host (`ollama pull translategemma:4b`), on the CPU unless the graphics card is enabled in **Ajustes → Traducción**. It reads the sentence around the selected fragment, so it picks the sense the fragment has there ("In relating" → "Al relatar"). If Ollama isn't running, a local LibreTranslate container translates instead (lighter, but it only sees the fragment); the paid AI can also be chosen. Every translation is cached in the database.
+
+The dictionary is Wiktionary, through [Kaikki](https://kaikki.org): the English edition (translation tables, inflections, pronunciation) plus the edition written in the reader's language (Spanish, French, Portuguese or Italian), whose definitions fill the gaps of the English translation tables ("heaven" → "cielo, firmamento").
 
 ### Adding a language
 

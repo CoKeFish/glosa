@@ -18,8 +18,10 @@ DEFAULTS = {
     # voices maps "engine:language" to the chosen voice.
     # prefer_recordings: for single words, play Wiktionary's human recordings when they exist.
     "tts": {"engine": "kokoro", "voices": {}, "prefer_recordings": True},
-    # Who translates phrases and sentences: "local" (LibreTranslate, no AI) or "ai".
-    "translation": {"provider": "local"},
+    # Who translates phrases and sentences: "llm" (a translation model in Ollama, reads the
+    # sentence around the fragment), "local" (LibreTranslate) or "ai". The model runs on the
+    # CPU unless use_gpu; if Ollama does not answer, LibreTranslate translates instead.
+    "translation": {"provider": "llm", "llm_model": "translategemma:4b", "use_gpu": False},
     "ai.text": {"provider": DEFAULT_TEXT_MODEL.provider, "model": DEFAULT_TEXT_MODEL.model, "base_url": None},
     # Prices the reader entered for models without a known price: {model: {"input", "output"}} in USD/M tokens.
     "ai.prices": {},

@@ -352,6 +352,7 @@ kbd { font: 600 0.8rem var(--font); background: var(--field); border-radius: 6px
 .voice-controls select { flex: 1; min-width: 200px; }
 .voice-controls .btn-outline { padding: 0.5em 0.9em; }
 .choice-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+.choice-cards.three { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
 .choice-card { display: flex; flex-direction: column; gap: 0.3rem; border: 1.5px solid var(--line); border-radius: 16px; padding: 0.9rem 1rem; cursor: pointer; font-weight: 400; }
 .choice-card input { display: none; }
 .choice-card strong { color: var(--fg); }

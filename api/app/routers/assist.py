@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app import keystore, languages, settings_store
+from app import keystore, languages, settings_store, translation_cache
 from app.ai import service as ai_service
 from app.ai.base import AIError, AINotConfigured, ModelConfig
 from app.ai.registry import PROVIDERS, build_text_model, describe_providers
@@ -16,7 +16,8 @@ from app.ai import pricing
 from app import tts
 from app.models import AIUsage, AudioCache, SpeechCache
 from app.routers.common import require_language
-from app.translation import AITranslator, LocalTranslator, TranslationError, Untranslated
+from app.translation import (DEFAULT_LLM, AITranslator, LLMTranslator, LocalTranslator, TranslationError,
+                             Untranslated, llm_models)
 
 router = APIRouter(prefix="/api")
 
@@ -41,26 +42,57 @@ async def lookup(language: str, term: str, lemma: str | None = None, context: st
 class TranslateTextIn(BaseModel):
     language: str
     text: str
-    provider: str | None = None  # "local" or "ai"; defaults to the setting
+    provider: str | None = None  # "llm", "local" or "ai"; defaults to the setting
+    context: str = ""  # the sentence the text comes from, for translators that read it
+
+
+def _translator(session: Session, provider: str):
+    if provider == "llm":
+        config = settings_store.get(session, "translation")
+        return LLMTranslator(config.get("llm_model") or DEFAULT_LLM, bool(config.get("use_gpu")))
+    if provider == "ai":
+        return AITranslator(_model(session))
+    if provider == "local":
+        return LocalTranslator()
+    raise HTTPException(400, f"Traductor desconocido: {provider}")
+
+
+async def _translate(session: Session, translator, body: TranslateTextIn, native: str) -> str:
+    model = translator.model if translator.id == "ai" else None
+    # A repeated text comes from the cache: no new request, and for the AI, no new cost.
+    return await translation_cache.cached(
+        session, translation_cache.translator_id(translator), body.language, native,
+        translation_cache.cache_text(body.text, body.context, translator),
+        lambda: _run(translator.translate(body.text, body.language, native, body.context), session, model, "translate"))
 
 
 @router.post("/translate")
 async def translate_text(body: TranslateTextIn, session: Session = Depends(get_session)):
     """Translate a phrase or sentence with the configured translator, or the one asked for."""
     native = settings_store.native_language(session)
-    provider = body.provider or settings_store.get(session, "translation")["provider"]
-    if provider not in ("local", "ai"):
-        raise HTTPException(400, f"Traductor desconocido: {provider}")
-    model = _model(session) if provider == "ai" else None
-    translator = LocalTranslator() if model is None else AITranslator(model)
+    translator = _translator(session, body.provider or settings_store.get(session, "translation")["provider"])
     try:
-        text = await _run(translator.translate(body.text, body.language, native), session, model, "translate")
+        try:
+            text = await _translate(session, translator, body, native)
+        except TranslationError as exc:
+            if translator.id != "llm" or isinstance(exc, Untranslated):
+                raise
+            # Ollama is not running or lacks the model: LibreTranslate still gives an answer.
+            translator = LocalTranslator()
+            text = await _translate(session, translator, body, native)
     except Untranslated as exc:
-        # Not a failure of the service: tell the reader and let them ask the AI instead.
+        # Not a failure of the service: tell the reader and let them ask another translator.
         return {"translation": None, "provider": translator.id, "message": str(exc)}
     except TranslationError as exc:
         raise HTTPException(502, str(exc))
     return {"translation": text, "provider": translator.id}
+
+
+@router.get("/translation/models")
+async def translation_models():
+    """Models installed in Ollama, for the local translation model dropdown."""
+    models = await llm_models()
+    return {"available": bool(models), "models": models, "recommended": DEFAULT_LLM}
 
 
 AUDIO_HOST = "https://upload.wikimedia.org/"
@@ -288,20 +320,6 @@ async def explain(body: ExplainIn, session: Session = Depends(get_session)):
         model, language=body.language, native=settings_store.native_language(session),
         term=body.term, kind=body.kind, context=body.context,
     ), session, model, "explain")
-
-
-class TranslateIn(BaseModel):
-    language: str
-    text: str
-
-
-@router.post("/ai/translate")
-async def translate(body: TranslateIn, session: Session = Depends(get_session)):
-    model = _model(session)
-    text = await _run(ai_service.translate(
-        model, language=body.language, native=settings_store.native_language(session), text=body.text
-    ), session, model, "translate")
-    return {"translation": text}
 
 
 class GrammarIn(BaseModel):

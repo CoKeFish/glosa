@@ -17,6 +17,12 @@ const MEANING_LANGUAGES = [
 
 const CUSTOM = "__custom__";
 
+const TRANSLATORS = [
+  { id: "llm", label: "set.translatorLlm", help: "set.translatorLlmHelp" },
+  { id: "local", label: "set.translatorLocal", help: "set.translatorLocalHelp" },
+  { id: "ai", label: "set.translatorAi", help: "set.translatorAiHelp" },
+] as const;
+
 export function SettingsPage() {
   const { t, setUiLanguage } = useI18n();
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -27,12 +33,14 @@ export function SettingsPage() {
   const [models, setModels] = useState<{ list: { id: string; label: string }[]; recommended: string } | null>(null);
   const [modelsError, setModelsError] = useState("");
   const [customModel, setCustomModel] = useState(false);
+  const [llm, setLlm] = useState<Awaited<ReturnType<typeof api.translationModels>> | null>(null);
   // Bumped on save: the usage card estimates costs for the saved model.
   const [savedModel, setSavedModel] = useState(0);
 
   useEffect(() => {
     api.settings().then(setSettings);
     api.providers().then(setProviders);
+    api.translationModels().then(setLlm).catch(() => setLlm({ available: false, models: [], recommended: "translategemma:4b" }));
   }, []);
 
   // Ask the provider which models the key (or local server) offers, whenever that can change.
@@ -58,6 +66,7 @@ export function SettingsPage() {
 
   if (!settings) return <div className="page narrow muted">{t("loading")}</div>;
   const ai = settings["ai.text"];
+  const translation = settings.translation;
   const provider = providers.find((p) => p.id === ai.provider);
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => setSettings({ ...settings, [key]: value });
@@ -135,21 +144,54 @@ export function SettingsPage() {
 
         <section className="card">
           <h2>{t("set.translation")}</h2>
-          <div className="choice-cards">
-            {(["local", "ai"] as const).map((p) => (
-              <label key={p} className={`choice-card ${settings.translation.provider === p ? "on" : ""}`}>
+          <div className="choice-cards three">
+            {TRANSLATORS.map(({ id, label, help }) => (
+              <label key={id} className={`choice-card ${translation.provider === id ? "on" : ""}`}>
                 <input
                   type="radio"
                   name="translator"
-                  checked={settings.translation.provider === p}
-                  onChange={() => update("translation", { provider: p })}
+                  checked={translation.provider === id}
+                  onChange={() => update("translation", { ...translation, provider: id })}
                 />
-                <strong>{t(p === "local" ? "set.translatorLocal" : "set.translatorAi")}</strong>
-                <span className="muted small">{t(p === "local" ? "set.translatorLocalHelp" : "set.translatorAiHelp")}</span>
+                <strong>{t(label)}</strong>
+                <span className="muted small">{t(help)}</span>
               </label>
             ))}
           </div>
-          {settings.translation.provider === "ai" && !provider?.key_configured && provider?.key_env && (
+          {translation.provider === "llm" && (
+            <>
+              {llm && !llm.available && (
+                <p className="warn small" style={{ margin: 0 }}>{t("set.llmMissing", { model: llm.recommended })}</p>
+              )}
+              {llm?.available && (
+                <label>
+                  {t("set.llmModel")}
+                  <select
+                    value={translation.llm_model}
+                    onChange={(e) => update("translation", { ...translation, llm_model: e.target.value })}
+                  >
+                    {[...new Set([translation.llm_model, ...llm.models])].map((m) => (
+                      <option key={m} value={m}>
+                        {m}{m === llm.recommended ? ` — ${t("set.llmRecommended")}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {llm?.available && !llm.models.includes(llm.recommended) && (
+                <p className="warn small" style={{ margin: 0 }}>{t("set.llmNotInstalled", { model: llm.recommended })}</p>
+              )}
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={translation.use_gpu}
+                  onChange={(e) => update("translation", { ...translation, use_gpu: e.target.checked })}
+                />
+                {t("set.llmGpu")}
+              </label>
+            </>
+          )}
+          {translation.provider === "ai" && !provider?.key_configured && provider?.key_env && (
             <p className="warn small" style={{ margin: 0 }}>{t("set.aiNeedsKey")}</p>
           )}
         </section>

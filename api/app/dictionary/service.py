@@ -7,6 +7,7 @@ from app.dictionary import ranking
 from app.dictionary.base import Dictionary, DictionaryError
 from app.languages import get_language
 from app.models import DictionaryCache
+from app import translation_cache
 from app.translation import LocalTranslator, TranslationError
 
 
@@ -21,22 +22,15 @@ async def _entries(session: Session, dictionary: Dictionary, term: str, meaning_
     return entries
 
 
-_sentence_cache: dict[tuple[str, str, str], str] = {}
-
-
-async def _translate_sentence(sentence: str, source: str, target: str) -> str:
+async def _translate_sentence(session: Session, sentence: str, source: str, target: str) -> str:
     """Local machine translation of the sentence, used as a ranking signal. Empty if unavailable."""
     if not sentence:
         return ""
-    key = (sentence, source, target)
-    if key not in _sentence_cache:
-        try:
-            _sentence_cache[key] = await LocalTranslator().translate(sentence, source, target)
-        except TranslationError:
-            return ""
-        if len(_sentence_cache) > 2000:
-            _sentence_cache.pop(next(iter(_sentence_cache)))
-    return _sentence_cache[key]
+    try:
+        return await translation_cache.cached(session, "local", source, target, sentence,
+                                              lambda: LocalTranslator().translate(sentence, source, target))
+    except TranslationError:
+        return ""
 
 
 # Wiktionary (English edition) writes its definitions in English, whatever the word's language.
@@ -45,17 +39,28 @@ MAX_DEFINITION_PIECES = 6
 # Definitions that only point elsewhere; translating them gives nothing useful.
 NON_GLOSSES = re.compile(r"^(used other than|alternative|misspelling|obsolete form|archaic form|(simple )?past|"
                          r"present participle|plural of|third-person|eye dialect|abbreviation of)", re.I)
+DEGREE_FORM = re.compile(r"^(comparative|superlative) (?:degree |form )?of \w[\w-]*: (?P<meaning>(?:more|most) .+)$", re.I)
 
 
-def _definition_pieces(results: list[dict], usage: ranking.Usage) -> list[tuple[str, dict, str]]:
+def _definition_pieces(results: list[dict], usage: ranking.Usage,
+                       only_pos: bool = False) -> list[tuple[str, dict, str]]:
     """Short English glosses worth translating: (piece, entry, full definition), best entries first."""
-    entries = [(r["term"], e) for r in results for e in r["entries"]]
+    # English definitions only: the other Wiktionary's are already in the reader's language.
+    entries = [(r["term"], e) for r in results if not r.get("native") for e in r["entries"]]
+    if only_pos:
+        entries = [(t, e) for t, e in entries if e["part_of_speech"] == usage.pos]
     if usage.pos:
         entries.sort(key=lambda te: te[1]["part_of_speech"] != usage.pos)
     pieces = []
     for term, entry in entries:
         for definition in entry["definitions"]:
             if NON_GLOSSES.match(definition):
+                continue
+            # "comparative form of broad: more broad" → translate "more broad" ("más amplio"),
+            # the meaning of this very form, not the grammar label.
+            degree = DEGREE_FORM.match(definition)
+            if degree:
+                pieces.append((degree["meaning"].rstrip("."), {**entry, "term": term, "degree": True}, definition))
                 continue
             # "In any case; anyway." → two short glosses, each translates cleanly.
             for piece in re.split(r";\s*", definition.rstrip(".")):
@@ -67,15 +72,18 @@ def _definition_pieces(results: list[dict], usage: ranking.Usage) -> list[tuple[
     return pieces
 
 
-async def _translated_definitions(results: list[dict], usage: ranking.Usage, meaning_language: str) -> list[dict]:
+async def _translated_definitions(session: Session, results: list[dict], usage: ranking.Usage,
+                                  meaning_language: str, only_pos: bool = False) -> list[dict]:
     """When the dictionary has no translations into the reader's language, translate its
     English definitions locally: "To appear suddenly" → "Aparecer de repente". Bare words
     and idioms translate badly on their own ("spring up" → "primavera"); plain definitions do not."""
-    pieces = _definition_pieces(results, usage)
+    pieces = _definition_pieces(results, usage, only_pos)
     if not pieces:
         return []
     try:
-        texts = await LocalTranslator().translate_many([p for p, _, _ in pieces], DEFINITIONS_LANGUAGE, meaning_language)
+        texts = await translation_cache.cached_many(
+            session, "local", DEFINITIONS_LANGUAGE, meaning_language, [p for p, _, _ in pieces],
+            lambda missing: LocalTranslator().translate_many(missing, DEFINITIONS_LANGUAGE, meaning_language))
     except TranslationError:
         return []
     candidates = []
@@ -90,6 +98,7 @@ async def _translated_definitions(results: list[dict], usage: ranking.Usage, mea
             "text": text[0].lower() + text[1:], "sense": definition, "term": entry["term"],
             "word": entry.get("word") or entry["term"], "part_of_speech": entry["part_of_speech"],
             "forms": entry.get("forms", []), "tags": [], "from_definition": True,
+            **({"degree_form": True} if entry.get("degree") else {}),
         })
     return candidates
 
@@ -102,10 +111,11 @@ def _pronunciation(results: list[dict], usage: ranking.Usage, surface: str, best
     once per etymology, so the etymology of the best-fitting translation decides; failing
     that, the part of speech used in the sentence.
     """
-    entries = [e for r in results if r["term"] == surface for e in r["entries"]]
+    # The Wiktionary in the reader's language carries no pronunciation (see kaikki.NativeWiktionary).
+    entries = [e for r in results if r["term"] == surface and not r.get("native") for e in r["entries"]]
     if not entries:
         return None
-    if best and best.get("term") == surface:
+    if best and best.get("term") == surface and not best.get("native"):
         etymology = best.get("etymology")
     else:
         by_pos = sorted(entries, key=lambda e: e["part_of_speech"] != usage.pos)
@@ -146,6 +156,7 @@ async def lookup(
             continue
         seen.add(term)
         for dictionary in pack.dictionaries():
+            native = getattr(dictionary, "native", False)
             try:
                 entries = await _entries(session, dictionary, term, meaning_language)
             except DictionaryError as exc:
@@ -153,19 +164,47 @@ async def lookup(
                 continue
             if not entries:
                 continue
-            results.append({"term": term, "source": dictionary.name, "entries": entries})
+            results.append({"term": term, "source": dictionary.name, "entries": entries, "native": native})
             for entry in entries:
                 for t in entry["translations"]:
                     candidates.append({**t, "term": term, "word": entry.get("word") or term,
                                        "part_of_speech": entry["part_of_speech"], "forms": entry.get("forms", []),
-                                       "etymology": entry.get("etymology", 0)})
+                                       "etymology": entry.get("etymology", 0), "native": native})
                 if len(seen) < 4:
                     pending.extend(f.lower() for f in entry["form_of"])
+                    # A word with no translations of its own that refers to another one
+                    # ("upon" → "on") borrows that word's translations.
+                    if not entry["translations"]:
+                        pending.extend(w.lower() for w in entry.get("see", []))
+        # Proper nouns are entered capitalised ("Ohio", "Harvard"): nothing in lower case → try that.
+        if not pending and not results and term == terms[0].strip().lower() and term[:1].isalpha():
+            pending.append(term.capitalize())
+
+    # Both Wiktionaries often agree ("mentir"): keep one, or the tie hides which meaning fits.
+    unique_candidates, keys = [], set()
+    for c in candidates:
+        key = (c["text"].lower(), c["part_of_speech"])
+        if key not in keys:
+            keys.add(key)
+            unique_candidates.append(c)
+    candidates = unique_candidates
 
     # The sentence translation is shown in the panel and ranks candidates, so always fetch it.
-    context_translation = await _translate_sentence(context, language, meaning_language)
-    if not candidates and meaning_language != DEFINITIONS_LANGUAGE:
-        candidates = await _translated_definitions(results, usage, meaning_language)
+    context_translation = await _translate_sentence(session, context, language, meaning_language)
+    if meaning_language != DEFINITIONS_LANGUAGE:
+        if not candidates:
+            candidates = await _translated_definitions(session, results, usage, meaning_language)
+        elif usage.pos and not any(c["part_of_speech"] == usage.pos for c in candidates):
+            # The word is used as, say, an adjective, but only another part of speech has
+            # translations ("broader": only the slang noun "broad" is translated). Translate
+            # the definitions of the part of speech actually used.
+            candidates += await _translated_definitions(session, results, usage, meaning_language, only_pos=True)
+        # "broader" is "comparative form of broad: more broad": its own meaning ("más amplio")
+        # beats the base word's, even when the base word has translations.
+        own = [r for r in results if r["term"] == surface and not r.get("native")]
+        if any(DEGREE_FORM.match(d) for r in own for e in r["entries"] for d in e["definitions"]):
+            candidates += [c for c in await _translated_definitions(session, own, usage, meaning_language)
+                           if c.get("degree_form")]
     ranked = await run_in_threadpool(
         ranking.rank, candidates, surface=surface, usage=usage, context=context,
         meaning_language=meaning_language, context_translation=context_translation,

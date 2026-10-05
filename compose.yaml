@@ -25,6 +25,8 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
       TRANSLATOR_URL: http://translator:5000
+      # Ollama on the host, for the local translation model (Ajustes → Traducción).
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
       # Encrypts API keys entered in the app. Optional: without it a key is generated in api-data.
       GLOSA_SECRET_KEY: ${GLOSA_SECRET_KEY:-}
     volumes:

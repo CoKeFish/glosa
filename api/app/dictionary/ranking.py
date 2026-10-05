@@ -80,24 +80,61 @@ def _uses_pattern(candidate: dict, preposition: str) -> bool:
 
 
 def _stem(word: str) -> str:
-    """Crude stem for matching a dictionary form against an inflected translation
-    ("llevar" ~ "llevado", "duda" ~ "dudas")."""
-    word = word.lower()
-    for ending in ("ar", "er", "ir", "se"):
-        if word.endswith(ending) and len(word) > 4:
-            word = word[: -len(ending)]
-            break
-    return word[: max(3, len(word) - 1)] if len(word) > 4 else word
+    """Stem of a dictionary form: the infinitive ending or final vowel removed
+    ("llevar" → "llev", "duda" → "dud", "estar" → "est")."""
+    word = word.lower().removesuffix("se")
+    for ending in ("ar", "er", "ir"):
+        if word.endswith(ending) and len(word) > 3:
+            return word[: -len(ending)]
+    return word[:-1] if len(word) > 3 and word[-1] in "aeo" else word
 
 
-def _appears_in(candidate_text: str, translation: str) -> bool:
+# What may follow a Spanish stem in an inflected form: verb endings, participles, gerunds,
+# plurals, and attached clitics. "están" is "est" + "án"; "mental" is not "ment" + anything here.
+_ES_INFLECTION = re.compile(
+    r"(?:oy|ás|á|án|amos|áis|uve|uvo|uvieron|"
+    r"a|as|an|o|os|e|es|en|emos|imos|éis|ís|ó|é|í|aste|iste|aron|ieron|ió|"
+    r"aba|abas|aban|ábamos|ía|ías|ían|íamos|ado|ada|ados|adas|ido|ida|idos|idas|ando|iendo|yendo|"
+    r"ar|er|ir|aré|ará|arán|eré|erá|erán|iré|irá|irán|aría|arían|ería|erían|iría|irían|"
+    r"ase|ara|aran|iera|ieran|iese|s|n)?"
+    r"(?:se|lo|la|le|los|las|les|me|te|nos)?"
+)
+
+
+def _is_form_of(word: str, dictionary_word: str, language: str) -> bool:
+    """`word` (from the translation) is an inflected form of `dictionary_word`."""
+    word, base = word.lower(), dictionary_word.lower()
+    if word == base:
+        return True
+    stem = _stem(base)
+    if len(stem) < 3 or not word.startswith(stem):
+        return False
+    rest = word[len(stem):]
+    if language == "es":
+        return _ES_INFLECTION.fullmatch(rest) is not None
+    return len(rest) <= 3  # other languages: a short ending only
+
+
+def _content_words(text: str) -> list[str]:
+    return [p for p in re.findall(r"\w+", text.lower()) if len(p) > 2]
+
+
+def _appears_in(candidate_text: str, translation: str, language: str = "es") -> bool:
     words = re.findall(r"\w+", translation.lower())
     # Every content word of a multi-word candidate must be there: "mirar hacia arriba"
     # should not match a sentence that only says "miró".
-    parts = [p for p in re.findall(r"\w+", candidate_text.lower()) if len(p) > 2]
+    parts = _content_words(candidate_text)
     if not parts or not words:
         return False
-    return all(any(w.startswith(_stem(p)) for w in words) for p in parts)
+    return all(any(_is_form_of(w, p, language) for w in words) for p in parts)
+
+
+def _head_appears_in(candidate_text: str, translation: str, language: str = "es") -> bool:
+    """The first content word of a multi-word candidate appears in the translation."""
+    parts = _content_words(candidate_text)
+    if len(parts) < 2:
+        return False
+    return any(_is_form_of(w, parts[0], language) for w in re.findall(r"\w+", translation.lower()))
 
 
 def rank(candidates: list[dict], *, surface: str, usage: Usage, context: str, meaning_language: str = "es",
@@ -126,8 +163,15 @@ def rank(candidates: list[dict], *, surface: str, usage: Usage, context: str, me
             score -= 3.0  # this entry does not inflect that way
         if usage.pos and c.get("part_of_speech") == usage.pos:
             score += 2.0
-        if context_translation and _appears_in(c["text"], context_translation):
-            score += 3.0
+        if c.get("degree_form") and c.get("term", "").lower() == surface:
+            score += 2.0  # "broader" → "más amplio": the meaning of this exact comparative form
+        if context_translation:
+            if _appears_in(c["text"], context_translation, meaning_language):
+                score += 3.0
+            elif _head_appears_in(c["text"], context_translation, meaning_language):
+                # "estar ubicado" when the translation says "están fuera": the verb is there,
+                # its complement is not. Weaker evidence, but it beats a candidate with none.
+                score += 1.5
         trans = _transitivity(c)
         if usage.transitive is not None and trans is not None:
             score += 0.5 if trans == usage.transitive else -0.5
