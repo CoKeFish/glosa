@@ -110,7 +110,8 @@ label.check input { width: 18px; height: 18px; accent-color: var(--green); }
   display: flex; align-items: center; gap: 2rem; padding: 0 max(1rem, calc((100vw - 1180px) / 2));
   background: var(--bg); border-bottom: 1px solid var(--line);
 }
-.brand { font-weight: 700; font-size: 1.5rem; color: var(--fg); letter-spacing: -0.02em; text-decoration: none !important; }
+.brand { font-weight: 700; font-size: 1.5rem; color: var(--fg); letter-spacing: -0.02em; text-decoration: none !important; display: inline-flex; align-items: center; gap: 0.5rem; }
+.brand img { width: 30px; height: 30px; }
 .brand b { color: var(--green); }
 .topbar nav { display: flex; gap: 1.6rem; flex: 1; }
 .topbar nav a { color: var(--fg-2); font-weight: 500; padding: 0.4em 0; border-bottom: 2px solid transparent; text-decoration: none; }

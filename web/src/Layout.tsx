@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from "react-router";
 import { api } from "./api";
 import { useI18n } from "./i18n";
 import { configureVoice } from "./speech";
+import icon from "./icon.svg";
 
 type LanguageContext = { language: string; setLanguage: (code: string) => void; languages: { code: string; name: string }[] };
 const Ctx = createContext<LanguageContext>({ language: "en", setLanguage: () => {}, languages: [] });
@@ -52,7 +53,7 @@ export function Layout() {
   return (
     <>
       <header className="topbar">
-        <NavLink to="/" className="brand">glosa</NavLink>
+        <NavLink to="/" className="brand"><img src={icon} alt="" />glosa</NavLink>
         <nav>
           <NavLink to="/" end>{t("nav.library")}</NavLink>
           <NavLink to="/vocabulary">{t("nav.vocabulary")}</NavLink>

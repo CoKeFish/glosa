@@ -1,0 +1,27 @@
+# The landing page on the VPS, behind the proxy Coolify already runs (Traefik on the
+# `coolify` network), which also gets the certificate.
+#
+# To publish or update it, on the VPS:
+#   cd /opt/glosa && git pull && docker compose -f landing/compose.yml up -d --build
+services:
+  site:
+    build: .
+    container_name: glosa-site
+    restart: unless-stopped
+    networks: [coolify]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: coolify
+      traefik.http.routers.glosa-site-http.entrypoints: http
+      traefik.http.routers.glosa-site-http.rule: Host(`glosa.suchima.com`)
+      traefik.http.routers.glosa-site-http.middlewares: glosa-site-https
+      traefik.http.middlewares.glosa-site-https.redirectscheme.scheme: https
+      traefik.http.routers.glosa-site.entrypoints: https
+      traefik.http.routers.glosa-site.rule: Host(`glosa.suchima.com`)
+      traefik.http.routers.glosa-site.tls: "true"
+      traefik.http.routers.glosa-site.tls.certresolver: letsencrypt
+      traefik.http.services.glosa-site.loadbalancer.server.port: "80"
+
+networks:
+  coolify:
+    external: true
