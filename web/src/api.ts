@@ -95,6 +95,16 @@ export type Settings = {
   "ai.text": { provider: string; model: string; base_url: string | null };
 };
 
+export type ExtraItem = {
+  id: string;
+  group: "voice" | "translation" | "dictionary";
+  size_mb: number;
+  installed: boolean;
+  uses_host_ollama: boolean;
+  job: { state: "queued" | "installing" | "uninstalling" | "done" | "error"; progress?: number; phase?: string | null; error?: string | null } | null;
+};
+export type ExtrasStatus = { docker: boolean; items: ExtraItem[]; presets: Record<"light" | "recommended", string[]> };
+
 /** llm: translation model in Ollama; local: LibreTranslate; ai: the configured AI model. */
 export type Translator = "llm" | "local" | "ai";
 
@@ -191,6 +201,9 @@ export const api = {
     request<
       { id: string; label: string; available: boolean; voices: { id: string; label: string }[]; default_voice: string }[]
     >(`/tts/engines?language=${language}`),
+  extras: () => request<ExtrasStatus>("/extras"),
+  changeExtra: (id: string, action: "install" | "uninstall") => request(`/extras/${id}/${action}`, { method: "POST" }),
+  installPreset: (name: string) => request<{ queued: string[] }>(`/extras-preset/${name}`, { method: "POST" }),
   saveKey: (provider: string, key: string) => request(`/ai/keys/${provider}`, json("PUT", { key })),
   deleteKey: (provider: string) => request(`/ai/keys/${provider}`, { method: "DELETE" }),
   testModel: (cfg: { provider: string; model: string; base_url: string | null }) =>

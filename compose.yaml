@@ -1,7 +1,13 @@
 name: glosa
 
+# Development setup: the API and web reload from the sources. The released app uses
+# installer/compose.yaml with published images instead.
+#
 # API keys are read from the environment. Run with Doppler to inject them:
 #   doppler run -- docker compose up -d
+#
+# Voices, translators and the offline dictionary are not services here: they are extras the
+# app installs and removes itself (Extras page), through the Docker socket.
 services:
   db:
     image: postgres:17-alpine
@@ -18,21 +24,25 @@ services:
 
   api:
     build: ./api
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     environment:
       DATABASE_URL: postgresql+psycopg://glosa:${POSTGRES_PASSWORD:-glosa}@db:5432/glosa
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
-      TRANSLATOR_URL: http://translator:5000
-      # Ollama on the host, for the local translation model (Ajustes → Traducción).
+      # Ollama on the host, used when the app has not installed its own.
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
       # Encrypts API keys entered in the app. Optional: without it a key is generated in api-data.
       GLOSA_SECRET_KEY: ${GLOSA_SECRET_KEY:-}
+      # In development the Supertonic image is built locally (tts/supertonic).
+      GLOSA_SUPERTONIC_IMAGE: glosa-tts-supertonic:latest
     volumes:
       - ./api/app:/app/app
       - ./api/tests:/app/tests
       - api-data:/data
+      # Lets the app install and remove its extras (only containers labelled glosa.extra).
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8001:8000"
     extra_hosts:
@@ -41,27 +51,9 @@ services:
       db:
         condition: service_healthy
 
-  # Local machine translation (Argos Translate), no AI service or internet needed after the
-  # first start downloads the models. Add language codes to LT_LOAD_ONLY to support more pairs.
-  translator:
-    image: libretranslate/libretranslate:latest
-    environment:
-      LT_LOAD_ONLY: en,es
-    volumes:
-      - translator-models:/home/libretranslate/.local
-
-  # Local text-to-speech. Kokoro is the main voice; Supertonic covers the languages Kokoro
-  # lacks (German, Russian, Korean…). No host ports: only the API talks to them.
-  tts-kokoro:
-    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
-
-  tts-supertonic:
-    build: ./tts/supertonic
-    volumes:
-      - tts-supertonic-cache:/root/.cache
-
   web:
     build: ./web
+    command: ["npm", "run", "dev"]
     volumes:
       - ./web/src:/app/src
       - ./web/index.html:/app/index.html
@@ -73,6 +65,4 @@ services:
 
 volumes:
   db-data:
-  translator-models:
   api-data:
-  tts-supertonic-cache:

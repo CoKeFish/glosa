@@ -25,3 +25,6 @@ __pycache__/
 .impeccable/questions/
 .impeccable/hook.cache.json
 .impeccable/direction-round.json
+
+# Installer output
+dist/

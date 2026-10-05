@@ -6,6 +6,7 @@ import { LanguageProvider, Layout } from "./Layout";
 import { BookPage } from "./pages/BookPage";
 import { Library } from "./pages/Library";
 import { Reader } from "./pages/Reader";
+import { Extras } from "./pages/Extras";
 import { Review } from "./pages/Review";
 import { SettingsPage } from "./pages/SettingsPage";
 import { Vocabulary } from "./pages/Vocabulary";
@@ -22,6 +23,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="books/:bookId" element={<BookPage />} />
             <Route path="vocabulary" element={<Vocabulary />} />
             <Route path="review" element={<Review />} />
+            <Route path="extras" element={<Extras />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
           {/* The reader is full screen, without the app header. */}

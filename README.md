@@ -12,7 +12,27 @@ Reading things you actually care about is one of the best ways to learn a langua
 
 Early development. You can import a book (EPUB, TXT, HTML) or paste text in English, read it with word statuses, phrasal verb and grammar detection, a dictionary and optional AI explanations, and review saved terms. Requirements live in [docs/requerimientos.md](docs/requerimientos.md).
 
-## Running it
+## Installing
+
+**Windows:** download `glosa-setup-<version>.exe` from [Releases](https://github.com/CoKeFish/glosa/releases) and run it. It installs Docker Desktop if it is missing, asks for a **Light** (about 2 GB of extras) or **Recommended** (about 10 GB) setup, and adds glosa to the Start menu and desktop. The app opens at http://localhost:7878. Uninstalling asks whether to keep your books and vocabulary.
+
+**Other systems:** with Docker installed, copy [`installer/compose.yaml`](installer/compose.yaml) and run `docker compose -p glosa up -d`.
+
+### Extras
+
+The core (database, API, web) is small. Everything heavy is an extra, installed and removed from the app's **Extras** page, one by one or as the Light / Recommended sets:
+
+| Extra | Size | What it gives |
+|---|---|---|
+| Local translation model (TranslateGemma in Ollama) | ~3.3 GB (+3.5 GB if no Ollama on the host) | translations that read the sentence |
+| Basic translator (LibreTranslate) | ~1.3 GB | light fallback translator |
+| Kokoro voice | ~5 GB | the most natural voice |
+| Supertonic voice | ~0.9 GB | light voice, 31 languages |
+| Offline dictionary | 0.5 GB download, ~0.7 GB stored | all of Wiktionary, no internet needed |
+
+The app reaches Docker through its socket to do this, and only touches containers it labelled `glosa.extra`. API keys for cloud AI can be entered on the same page; they are stored encrypted on that computer only.
+
+## Running it for development
 
 Everything runs in containers; you only need Docker.
 
@@ -20,6 +40,8 @@ Everything runs in containers; you only need Docker.
 docker compose up -d          # web on http://localhost:5174, API on http://localhost:8001
 docker compose run --rm api pytest
 ```
+
+A release (`git tag v0.1.0 && git push --tags`) runs `.github/workflows/release.yml`: it publishes the images to ghcr.io and attaches the Windows installer to the GitHub release.
 
 AI features read their API keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`) from the environment, injected by [Doppler](https://www.doppler.com/) at start-up:
 
@@ -29,9 +51,9 @@ doppler run --project shared --config dev -- docker compose up -d
 
 Keys can also be pasted under **Ajustes → Modelo de IA**; they are stored encrypted (Fernet) with a master key from `GLOSA_SECRET_KEY`, or one generated in the `api-data` volume. A key from the environment takes priority. Without any key, AI buttons report it and everything else (dictionary, local translator) keeps working. Pick the provider and model in the same place: Anthropic, OpenAI, DeepSeek, or any OpenAI-compatible server such as Ollama.
 
-Pronunciation uses Wiktionary's recordings for single words and a local speech engine for everything else. Two engines run as containers and can be compared under **Ajustes → Voz**: Kokoro-82M (default, ~5 GB image) and Supertonic 3, which also covers the languages Kokoro lacks (German, Russian, Korean…). The browser's own voice is the last fallback.
+Pronunciation uses Wiktionary's recordings for single words and a local speech engine for everything else: Kokoro-82M or Supertonic 3 (extras), compared under **Ajustes → Voz**. The browser's own voice is the last fallback.
 
-Phrases and sentences are translated by default by a translation model running in [Ollama](https://ollama.com) on the host (`ollama pull translategemma:4b`), on the CPU unless the graphics card is enabled in **Ajustes → Traducción**. It reads the sentence around the selected fragment, so it picks the sense the fragment has there ("In relating" → "Al relatar"). If Ollama isn't running, a local LibreTranslate container translates instead (lighter, but it only sees the fragment); the paid AI can also be chosen. Every translation is cached in the database.
+Phrases and sentences are translated by default by a translation model in [Ollama](https://ollama.com): the host's when it runs one, otherwise the one the app installs as an extra. It runs on the CPU unless the graphics card is enabled in **Ajustes → Traducción**, and reads the sentence around the selected fragment, so it picks the sense the fragment has there ("In relating" → "Al relatar"). Without it, the basic translator (LibreTranslate) translates instead; the paid AI can also be chosen. Every translation is cached in the database.
 
 The dictionary is Wiktionary, through [Kaikki](https://kaikki.org): the English edition (translation tables, inflections, pronunciation) plus the edition written in the reader's language (Spanish, French, Portuguese or Italian), whose definitions fill the gaps of the English translation tables ("heaven" → "cielo, firmamento").
 

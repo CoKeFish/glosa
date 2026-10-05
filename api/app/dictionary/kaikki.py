@@ -11,6 +11,7 @@ from urllib.parse import quote
 
 import httpx
 
+from app import offline_dictionary
 from app.dictionary.base import DictionaryEntry, DictionaryError, Translation
 
 BASE = "https://kaikki.org/dictionary/{language}/meaning/{a}/{ab}/{word}.jsonl"
@@ -138,7 +139,11 @@ class KaikkiDictionary:
         self.language_name = language_name
 
     async def lookup(self, term: str, meaning_language: str) -> list[DictionaryEntry]:
-        return parse_lines(await _fetch(_url(self.language_name, term.strip())), meaning_language)
+        word = term.strip()
+        stored = offline_dictionary.lines("en", word) if self.language_name == "English" else None
+        if stored is not None:
+            return parse_lines(stored, meaning_language)
+        return parse_lines(await _fetch(_url(self.language_name, word)), meaning_language)
 
 
 # Wiktionary editions written in the reader's meaning language, as Kaikki extracts them:
@@ -215,6 +220,9 @@ class NativeWiktionary:
         if not edition or self.language_code not in names:
             return []
         word = term.strip()
+        stored = offline_dictionary.lines(f"native-{meaning_language}", word) if self.language_code == "en" else None
+        if stored is not None:
+            return parse_native_lines(stored)
         url = NATIVE_BASE.format(edition=edition, language=quote(names[self.language_code]),
                                  a=quote(word[:1]), ab=quote(word[:2]), word=quote(word))
         return parse_native_lines(await _fetch(url))

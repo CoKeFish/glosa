@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -108,6 +109,16 @@ class TranslationCache(Base):
     translator: Mapped[str] = mapped_column(String(120))  # "local", or "ai:<provider>:<model>"
     text: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class OfflineEntry(Base):
+    """A word from a downloaded Wiktionary dump (see app.offline_dictionary)."""
+
+    __tablename__ = "offline_entries"
+
+    source: Mapped[str] = mapped_column(String(20), primary_key=True)  # "en", "native-es"…
+    word: Mapped[str] = mapped_column(String(200), primary_key=True)
+    lines: Mapped[list] = mapped_column(JSON().with_variant(JSONB, "postgresql"))
 
 
 class ApiKey(Base):

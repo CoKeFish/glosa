@@ -2,10 +2,11 @@
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app import keystore, languages, settings_store, translation_cache
+from app import extras, keystore, languages, settings_store, translation_cache
 from app.ai import service as ai_service
 from app.ai.base import AIError, AINotConfigured, ModelConfig
 from app.ai.registry import PROVIDERS, build_text_model, describe_providers
@@ -46,10 +47,11 @@ class TranslateTextIn(BaseModel):
     context: str = ""  # the sentence the text comes from, for translators that read it
 
 
-def _translator(session: Session, provider: str):
+async def _translator(session: Session, provider: str):
     if provider == "llm":
         config = settings_store.get(session, "translation")
-        return LLMTranslator(config.get("llm_model") or DEFAULT_LLM, bool(config.get("use_gpu")))
+        return LLMTranslator(config.get("llm_model") or DEFAULT_LLM, bool(config.get("use_gpu")),
+                             url=await run_in_threadpool(extras.ollama_url))
     if provider == "ai":
         return AITranslator(_model(session))
     if provider == "local":
@@ -70,7 +72,7 @@ async def _translate(session: Session, translator, body: TranslateTextIn, native
 async def translate_text(body: TranslateTextIn, session: Session = Depends(get_session)):
     """Translate a phrase or sentence with the configured translator, or the one asked for."""
     native = settings_store.native_language(session)
-    translator = _translator(session, body.provider or settings_store.get(session, "translation")["provider"])
+    translator = await _translator(session, body.provider or settings_store.get(session, "translation")["provider"])
     try:
         try:
             text = await _translate(session, translator, body, native)
@@ -91,7 +93,7 @@ async def translate_text(body: TranslateTextIn, session: Session = Depends(get_s
 @router.get("/translation/models")
 async def translation_models():
     """Models installed in Ollama, for the local translation model dropdown."""
-    models = await llm_models()
+    models = await llm_models(await run_in_threadpool(extras.ollama_url))
     return {"available": bool(models), "models": models, "recommended": DEFAULT_LLM}
 
 
@@ -368,3 +370,30 @@ async def test_model(body: TestIn, session: Session = Depends(get_session)):
     text = await _run(ai_service.translate(model, language="en", native="es", text="Good morning"),
                       session, model, "test")
     return {"ok": True, "sample": text}
+
+
+# --- Extras: optional components installed from the app -------------------------------
+
+@router.get("/extras")
+async def list_extras():
+    return await run_in_threadpool(extras.status)
+
+
+@router.post("/extras/{extra_id}/{action}")
+async def change_extra(extra_id: str, action: str):
+    if action not in ("install", "uninstall"):
+        raise HTTPException(400, f"Acción desconocida: {action}")
+    try:
+        await run_in_threadpool(extras.start, extra_id, action)
+    except extras.ExtrasError as exc:
+        raise HTTPException(400, str(exc))
+    return {"ok": True}
+
+
+@router.post("/extras-preset/{name}")
+async def install_preset(name: str):
+    try:
+        queued = await run_in_threadpool(extras.start_preset, name)
+    except extras.ExtrasError as exc:
+        raise HTTPException(400, str(exc))
+    return {"queued": queued}

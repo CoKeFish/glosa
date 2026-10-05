@@ -60,6 +60,7 @@ export function Layout() {
           <NavLink to="/" end>{t("nav.library")}</NavLink>
           <NavLink to="/vocabulary">{t("nav.vocabulary")}</NavLink>
           <NavLink to="/review">{t("nav.review")}</NavLink>
+          <NavLink to="/extras">{t("nav.extras")}</NavLink>
           <NavLink to="/settings">{t("nav.settings")}</NavLink>
         </nav>
         <div className="topbar-right">

@@ -1,0 +1,46 @@
+name: glosa
+
+# The released app, as the Windows installer runs it: published images, nothing to build.
+# Voices, translators and the offline dictionary are extras the app installs itself.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: glosa
+      POSTGRES_PASSWORD: glosa  # only reachable inside this Docker network
+      POSTGRES_DB: glosa
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glosa"]
+      interval: 5s
+      retries: 20
+
+  api:
+    image: ${GLOSA_IMAGE_PREFIX:-ghcr.io/cokefish/glosa}-api:${GLOSA_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://glosa:glosa@db:5432/glosa
+      GLOSA_IMAGE_PREFIX: ${GLOSA_IMAGE_PREFIX:-ghcr.io/cokefish/glosa}
+      OLLAMA_URL: http://host.docker.internal:11434
+    volumes:
+      - api-data:/data  # holds the key that encrypts API keys entered in the app
+      - /var/run/docker.sock:/var/run/docker.sock  # installs the extras
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: ${GLOSA_IMAGE_PREFIX:-ghcr.io/cokefish/glosa}-web:${GLOSA_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${GLOSA_PORT:-7878}:80"  # this computer only
+    depends_on:
+      - api
+
+volumes:
+  db-data:
+  api-data:
