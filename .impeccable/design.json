@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-05T00:00:00Z",
+  "title": "Design System: glosa",
+  "extensions": {
+    "colorMeta": {
+      "cover": { "role": "primary", "displayName": "Ultramarine Cover", "canonical": "#1f2fd1", "tonalRamp": ["#0a1050", "#111b7d", "#1726a8", "#1f2fd1", "#4a57e0", "#7d87ea", "#b3b9f4", "#e4e7ff"] },
+      "cover-deep": { "role": "primary", "displayName": "Deep Cover", "canonical": "#1726a8", "tonalRamp": ["#0a1050", "#111b7d", "#1726a8", "#1f2fd1", "#4a57e0", "#7d87ea", "#b3b9f4", "#e4e7ff"] },
+      "highlighter-yellow": { "role": "secondary", "displayName": "Highlighter Yellow", "canonical": "#ffe94a", "tonalRamp": ["#4d4300", "#7a6b00", "#a89400", "#d6bf10", "#ffe94a", "#fff07a", "#fff6aa", "#fffbd8"] },
+      "highlighter-blue": { "role": "secondary", "displayName": "Highlighter Blue", "canonical": "#a5ddff", "tonalRamp": ["#0b3550", "#14557e", "#2079ae", "#4ba6dc", "#7cc6f2", "#a5ddff", "#cbebff", "#eaf7ff"] },
+      "highlighter-pink": { "role": "secondary", "displayName": "Highlighter Pink", "canonical": "#ffa3cc", "tonalRamp": ["#5a0f33", "#8a1b50", "#bb2f72", "#e65d9b", "#ff7fb6", "#ffa3cc", "#ffcbe2", "#ffecf4"] },
+      "flag-orange": { "role": "tertiary", "displayName": "Flag Orange", "canonical": "#ffb36b", "tonalRamp": ["#5c2f00", "#8a4a08", "#b86516", "#e5852f", "#ff9a45", "#ffb36b", "#ffd1a3", "#ffefdd"] },
+      "paper": { "role": "neutral", "displayName": "Cool Paper", "canonical": "#f6f7f8", "tonalRamp": ["#1c1d20", "#3a3c40", "#5d6066", "#8a8e95", "#b8bcc3", "#e1e4e9", "#f6f7f8", "#ffffff"] },
+      "paper-edge": { "role": "neutral", "displayName": "Paper Edge", "canonical": "#e1e4e9", "tonalRamp": ["#1c1d20", "#3a3c40", "#5d6066", "#8a8e95", "#b8bcc3", "#e1e4e9", "#f6f7f8", "#ffffff"] },
+      "slip-white": { "role": "neutral", "displayName": "Slip White", "canonical": "#ffffff", "tonalRamp": ["#1c1d20", "#3a3c40", "#5d6066", "#8a8e95", "#b8bcc3", "#e1e4e9", "#f6f7f8", "#ffffff"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#1c1b19", "tonalRamp": ["#0d0d0c", "#1c1b19", "#3d3c39", "#4a4945", "#6e6c67", "#9a9892", "#c8c6c0", "#eeedea"] },
+      "ink-2": { "role": "neutral", "displayName": "Second Ink", "canonical": "#3d3c39", "tonalRamp": ["#0d0d0c", "#1c1b19", "#3d3c39", "#4a4945", "#6e6c67", "#9a9892", "#c8c6c0", "#eeedea"] },
+      "pencil": { "role": "neutral", "displayName": "Graphite Pencil", "canonical": "#4a4945", "tonalRamp": ["#0d0d0c", "#1c1b19", "#3d3c39", "#4a4945", "#6e6c67", "#9a9892", "#c8c6c0", "#eeedea"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The headline, set as book text at display size with highlighted words." },
+      "headline": { "displayName": "Chapter", "purpose": "Chapter titles on each leaf." },
+      "title": { "displayName": "Blurb", "purpose": "Italic back-cover blurb." },
+      "body": { "displayName": "Body", "purpose": "Running text, promises, index entries." },
+      "passage": { "displayName": "Passage", "purpose": "The annotated reading sample, with drop cap and hanging punctuation." },
+      "running-head": { "displayName": "Running Head", "purpose": "Small-caps line at the top of every leaf." },
+      "gloss": { "displayName": "Pencil Gloss", "purpose": "Handwritten margin notes, legend, keys, step numbers." },
+      "label": { "displayName": "Label", "purpose": "Buttons, page flags, toast, colophon." },
+      "code": { "displayName": "Code", "purpose": "Install commands." }
+    },
+    "shadows": [
+      { "name": "page-on-cover", "value": "inset -14px 0 18px -16px rgb(0 0 0 / 0.22), 0 10px 30px rgb(0 0 0 / 0.28)", "purpose": "The one page lying on the cover, with a spine curve on its right edge." },
+      { "name": "bookmark", "value": "0 8px 18px rgb(0 0 0 / 0.22)", "purpose": "The bookmark slip hanging over the first leaf." },
+      { "name": "tucked-slip", "value": "0 3px 10px rgb(0 0 0 / 0.12)", "purpose": "The errata slip tucked into the book." },
+      { "name": "pasted-label", "value": "0 2px 6px rgb(0 0 0 / 0.25)", "purpose": "The title label on the back cover." },
+      { "name": "page-flag", "value": "-1px 1px 3px rgb(0 0 0 / 0.18)", "purpose": "Flags on the fore-edge (desktop only)." }
+    ],
+    "motion": [
+      { "name": "ease-paper", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Single easing for every motion: highlighter sweep, flags, button press, toast." },
+      { "name": "highlighter-sweep", "value": "background-size 0.55s, stagger 110ms per mark", "purpose": "Marks sweep in once, in reading order, when a passage enters view; absent under reduced motion." },
+      { "name": "flag-slide", "value": "transform 0.25s", "purpose": "Flags slide out from 1.4rem to 0.4rem on hover or focus." },
+      { "name": "button-press", "value": "transform 0.15s, translateY(1px)", "purpose": "Press feedback on buttons." }
+    ],
+    "breakpoints": [
+      { "name": "single-column", "value": "860px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Cover Button",
+      "kind": "button",
+      "refersTo": "button-cover",
+      "description": "Primary action on paper: ultramarine fill, white grotesk label.",
+      "html": "<button class=\"ds-btn ds-btn-cover\" type=\"button\"><svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" aria-hidden=\"true\"><rect x=\"6.5\" y=\"6.5\" width=\"10\" height=\"11\" rx=\"1.5\"/><path d=\"M13.5 6.5V4a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 4v9A1.5 1.5 0 0 0 5 14.5h1.5\"/></svg><span>Copy commands</span></button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; font-family: \"Schibsted Grotesk\", ui-sans-serif, system-ui, sans-serif; font-weight: 600; font-size: 0.95rem; padding: 0.7rem 1rem; border-radius: 3px; border: 0; cursor: pointer; text-decoration: none; transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s; } .ds-btn svg { width: 1.05em; height: 1.05em; flex: none; } .ds-btn:active { transform: translateY(1px); } .ds-btn:focus-visible { outline: 2.5px solid var(--cover, #1f2fd1); outline-offset: 3px; } .ds-btn-cover { background: var(--cover, #1f2fd1); color: #fff; } .ds-btn-cover:hover { background: var(--cover-deep, #1726a8); }"
+    },
+    {
+      "name": "Paper Button",
+      "kind": "button",
+      "refersTo": "button-paper",
+      "description": "Action on the cover (bookmark, back cover): paper fill, ultramarine label.",
+      "html": "<div class=\"ds-on-cover\"><button class=\"ds-btn-paper\" type=\"button\">Copy commands</button></div>",
+      "css": ".ds-on-cover { background: var(--cover, #1f2fd1); padding: 1.2rem; } .ds-btn-paper { display: inline-flex; align-items: center; justify-content: center; font-family: \"Schibsted Grotesk\", ui-sans-serif, system-ui, sans-serif; font-weight: 600; font-size: 0.95rem; padding: 0.7rem 1rem; border-radius: 3px; border: 0; cursor: pointer; background: var(--paper, #f6f7f8); color: var(--cover, #1f2fd1); transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s; } .ds-btn-paper:hover { background: #fff; } .ds-btn-paper:active { transform: translateY(1px); } .ds-btn-paper:focus-visible { outline: 2.5px solid #fff; outline-offset: 3px; }"
+    },
+    {
+      "name": "Line Button",
+      "kind": "button",
+      "refersTo": "button-line",
+      "description": "Secondary action on paper: inset ink outline, inverts on hover.",
+      "html": "<a class=\"ds-btn-line\" href=\"#\">Read the README</a>",
+      "css": ".ds-btn-line { display: inline-flex; align-items: center; font-family: \"Schibsted Grotesk\", ui-sans-serif, system-ui, sans-serif; font-weight: 600; font-size: 0.95rem; padding: 0.7rem 1rem; border-radius: 3px; text-decoration: none; background: transparent; color: var(--ink, #1c1b19); box-shadow: inset 0 0 0 1.5px var(--ink, #1c1b19); transition: background-color 0.15s, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-line:hover { background: var(--ink, #1c1b19); color: var(--paper, #f6f7f8); } .ds-btn-line:active { transform: translateY(1px); } .ds-btn-line:focus-visible { outline: 2.5px solid var(--cover, #1f2fd1); outline-offset: 3px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action on the cover: inset white outline at 70%.",
+      "html": "<div class=\"ds-cover-bg\"><button class=\"ds-btn-ghost\" type=\"button\">Copy commands</button></div>",
+      "css": ".ds-cover-bg { background: var(--cover, #1f2fd1); padding: 1.2rem; } .ds-btn-ghost { font-family: \"Schibsted Grotesk\", ui-sans-serif, system-ui, sans-serif; font-weight: 600; font-size: 0.95rem; padding: 0.7rem 1rem; border-radius: 3px; border: 0; cursor: pointer; background: transparent; color: #fff; box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.7); transition: background-color 0.15s; } .ds-btn-ghost:hover { background: rgb(255 255 255 / 0.12); } .ds-btn-ghost:focus-visible { outline: 2.5px solid #fff; outline-offset: 3px; }"
+    },
+    {
+      "name": "Page Flags",
+      "kind": "nav",
+      "refersTo": "page-flag",
+      "description": "Navigation as neon flags stuck to the book's fore-edge; slide out on hover.",
+      "html": "<nav class=\"ds-flags\" aria-label=\"Sections\"><a class=\"ds-flag\" href=\"#\">Page</a><a class=\"ds-flag\" href=\"#\">Index</a><a class=\"ds-flag\" href=\"#\">Install</a><button class=\"ds-flag\" type=\"button\">ES</button></nav>",
+      "css": ".ds-flags { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; overflow: hidden; } .ds-flag { display: block; font-family: \"Schibsted Grotesk\", ui-sans-serif, system-ui, sans-serif; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em; color: var(--ink, #1c1b19); text-decoration: none; padding: 0.45rem 0.7rem 0.45rem 0.85rem; width: 5.8rem; background: var(--flag, #ffb36b); opacity: 0.95; border: 0; border-radius: 2px 0 0 2px; box-shadow: -1px 1px 3px rgb(0 0 0 / 0.18); text-align: left; cursor: pointer; transform: translateX(1.4rem); transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); } .ds-flag:hover, .ds-flag:focus-visible { transform: translateX(0.4rem); } .ds-flag:focus-visible { outline: 2.5px solid var(--cover, #1f2fd1); outline-offset: 3px; }"
+    },
+    {
+      "name": "Highlighter Mark",
+      "kind": "custom",
+      "refersTo": "highlighter-yellow",
+      "description": "Signature: a skewed fluorescent band in one of three inks, each with one meaning.",
+      "html": "<p class=\"ds-text\"><span class=\"ds-hl ds-hl-blue\">relating</span> the circumstances which have <span class=\"ds-hl ds-hl-pink\">led to</span> my <span class=\"ds-hl\">confinement</span></p>",
+      "css": ".ds-text { font-family: Literata, \"Iowan Old Style\", Georgia, serif; font-size: 1.3rem; line-height: 1.85; color: var(--ink, #1c1b19); background: var(--paper, #f6f7f8); padding: 1rem; margin: 0; } .ds-hl { --c: var(--yellow, #ffe94a); background-image: linear-gradient(100deg, transparent 0.12em, var(--c) 0.14em, var(--c) calc(100% - 0.1em), transparent calc(100% - 0.06em)); background-repeat: no-repeat; background-size: 100% 0.82em; background-position: 0 72%; -webkit-box-decoration-break: clone; box-decoration-break: clone; padding: 0 0.12em; margin: 0 -0.06em; border-radius: 0.2em 0.08em 0.24em 0.06em; cursor: pointer; } .ds-hl:hover { text-decoration: underline dotted var(--pencil, #4a4945); text-decoration-thickness: 1.5px; } .ds-hl-blue { --c: var(--blue, #a5ddff); } .ds-hl-pink { --c: var(--pink, #ffa3cc); }"
+    },
+    {
+      "name": "Pencil Gloss",
+      "kind": "custom",
+      "refersTo": "pencil",
+      "description": "Handwritten margin notes keyed by raised numbers, alternating slight tilt.",
+      "html": "<ol class=\"ds-glosses\"><li>¹ <b>led to</b> → llevar a</li><li>² <b>confinement</b> → encierro</li></ol>",
+      "css": ".ds-glosses { list-style: none; margin: 0; padding: 1rem; background: var(--paper, #f6f7f8); display: flex; flex-direction: column; gap: 1.1rem; font-family: \"Reenie Beanie\", \"Segoe Print\", cursive; color: var(--pencil, #4a4945); font-size: 2rem; line-height: 1.15; } .ds-glosses li { transform: rotate(-1.2deg); } .ds-glosses li:nth-child(2n) { transform: rotate(0.8deg); } .ds-glosses b { font-weight: 400; color: var(--ink, #1c1b19); }"
+    },
+    {
+      "name": "Bookmark",
+      "kind": "card",
+      "refersTo": "bookmark",
+      "description": "The primary action: an ultramarine slip with a swallowtail notch carrying the install commands.",
+      "html": "<aside class=\"ds-bookmark\"><h2>Install in two commands</h2><pre class=\"ds-cmds\"><span class=\"ds-p\">$ </span>git clone https://github.com/CoKeFish/glosa\n<span class=\"ds-p\">$ </span>cd glosa &amp;&amp; docker compose up -d</pre><button class=\"ds-bm-btn\" type=\"button\">Copy commands</button></aside>",
+      "css": ".ds-bookmark { width: 300px; background: var(--cover, #1f2fd1); color: #fff; padding: 1.2rem 1.1rem 2.6rem; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 1.3rem), 0 100%); box-shadow: 0 8px 18px rgb(0 0 0 / 0.22); font-family: \"Schibsted Grotesk\", ui-sans-serif, system-ui, sans-serif; } .ds-bookmark h2 { font-family: Literata, Georgia, serif; font-variant: small-caps; font-size: 1.02rem; font-weight: 600; letter-spacing: 0.04em; margin: 0 0 0.7rem; color: #e4e7ff; } .ds-cmds { font-family: ui-monospace, \"Cascadia Mono\", \"SF Mono\", Consolas, monospace; font-size: 0.8rem; line-height: 1.55; margin: 0 0 1rem; white-space: pre; overflow-x: auto; color: #fff; } .ds-p { color: #d3d8ff; user-select: none; } .ds-bm-btn { width: 100%; font-family: inherit; font-weight: 600; font-size: 0.95rem; padding: 0.7rem 1rem; border-radius: 3px; border: 0; cursor: pointer; background: var(--paper, #f6f7f8); color: var(--cover, #1f2fd1); transition: background-color 0.15s; } .ds-bm-btn:hover { background: #fff; } .ds-bm-btn:focus-visible { outline: 2.5px solid #fff; outline-offset: 3px; }"
+    },
+    {
+      "name": "Running Head",
+      "kind": "custom",
+      "refersTo": "running-head",
+      "description": "Small-caps running head at the top of each leaf, with a hairline rule.",
+      "html": "<header class=\"ds-running\"><span>a reader for learning languages</span><span class=\"ds-rule\"></span><span>index</span></header>",
+      "css": ".ds-running { display: flex; align-items: center; gap: 1rem; font-family: Literata, Georgia, serif; font-variant: small-caps; letter-spacing: 0.04em; color: var(--ink-2, #3d3c39); font-size: 0.92rem; background: var(--paper, #f6f7f8); padding: 1rem; } .ds-rule { flex: 1; height: 1px; background: var(--paper-edge, #e1e4e9); }"
+    },
+    {
+      "name": "Errata Slip",
+      "kind": "card",
+      "refersTo": "errata-slip",
+      "description": "A white slip tucked into the book, slightly rotated, for what is not in this edition.",
+      "html": "<div class=\"ds-page\"><aside class=\"ds-errata\"><h3>Errata</h3><p>Not in this edition: a phone app and a hosted version.</p></aside></div>",
+      "css": ".ds-page { background: var(--paper, #f6f7f8); padding: 1.5rem; } .ds-errata { max-width: 30rem; background: #fff; padding: 1rem 1.2rem 1.1rem; transform: rotate(-1.4deg); box-shadow: 0 3px 10px rgb(0 0 0 / 0.12); font-family: Literata, Georgia, serif; font-size: 0.98rem; } .ds-errata h3 { font-variant: small-caps; letter-spacing: 0.05em; font-size: 1rem; margin: 0 0 0.35rem; font-weight: 700; } .ds-errata p { margin: 0; color: var(--ink-2, #3d3c39); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Annotated Paperback",
+    "overview": "glosa presents itself the way its readers read: a pocket paperback page in cool white, a real book face, fluorescent highlighter on the words that matter and graphite pencil glosses in the margin. The page sits on an ultramarine cover that shows at the edges and closes the book at the end, drenched. Every structural device is borrowed from the book rather than from software: running heads and folios instead of a header bar, page flags on the fore-edge instead of a nav, a bookmark slip instead of a CTA card, an index instead of a feature grid, an errata slip instead of a roadmap, an appendix instead of a docs section.\n\nDensity is that of a well-set book: one generous text column, a margin column for notes, long measure-limited lines, quiet hierarchy. Colour is almost absent from the paper; it arrives only as highlighter ink, and each ink means one thing. The world refuses the open-source default of a split hero with an app screenshot over a grid of feature cards, and refuses the SaaS register (gradients, sales tone) and the gamified one (mascots, toy colours).\n\nScope: this system governs the landing page (`landing/`) and the brand mark everywhere. The app UI (`web/`) is out of scope except for the mark: its favicon (`web/src/icon.svg`) and header wordmark (`web/src/wordmark.svg`, rendered in currentColor at 30px high) belong to this system; its own tokens (DM Sans, its greens, blues and yellows) are a separate, deliberately unchanged system and must not be reconciled with this one.",
+    "keyCharacteristics": [
+      "Paper on cover: a cool white page with a faint fractal-noise grain, sitting on ultramarine.",
+      "Three highlighter inks with fixed meanings; no other colour on the paper.",
+      "Literata does all reading and display work; Reenie Beanie is the pencil; Schibsted Grotesk only labels controls.",
+      "Book apparatus as interface: running heads, folios, glosses keyed by superscript numbers, page flags, bookmark, index, errata, appendix, back cover.",
+      "Soft, paper-object shadows; small, nearly square corners."
+    ],
+    "rules": [
+      { "name": "The Ink Means Something Rule", "body": "Yellow is learning (and the brand), blue is new, pink is an expression. A highlighter colour never decorates; if a word is highlighted, the colour states its status, and the legend must be able to explain it.", "section": "colors" },
+      { "name": "The Cover Frames Rule", "body": "Ultramarine is the binding, not a page colour: it appears at the page edges, on objects that belong to the cover (bookmark, back cover, cover-filled button) and nowhere as a paper tint or gradient.", "section": "colors" },
+      { "name": "The Book Face Rule", "body": "Anything that is read is set in Literata. The grotesk never sets a heading or a paragraph; it labels controls.", "section": "typography" },
+      { "name": "The Pencil Is a Reader Rule", "body": "Reenie Beanie only writes what a reader would write in a margin: glosses, keys, a legend, a note to try something, step numbers. It never sets a heading, a button or product copy that the book itself would print.", "section": "typography" },
+      { "name": "The Paper Objects Rule", "body": "A shadow is allowed only when something is physically lying on something else. Buttons, the code well and the toast are flat.", "section": "elevation" },
+      { "name": "The Slight Hand Rule", "body": "Loose paper and pencil are never perfectly straight: slips rotate about 1-1.4deg, glosses alternate -1.2deg and 0.8deg. Printed text is never rotated.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do set every word that is read in Literata, using its optical sizes (opsz 72 for display, 60 for chapter heads).",
+      "Do give each highlighter ink exactly one meaning: yellow learning and brand, blue new, pink expression.",
+      "Do borrow structure from the book: running heads, folios, margin glosses, page flags, bookmark, index, errata, appendix, back cover.",
+      "Do keep the page cool paper (#f6f7f8 family) framed by the ultramarine cover, with the cover returning in full at the end.",
+      "Do key every pencil gloss to its word with a raised hand-written number.",
+      "Do keep shadows soft and tied to a physical object (page, slip, label, flag).",
+      "Do use the wordmark in currentColor over its fixed yellow stroke, and the icon tile as the favicon everywhere, including the app."
+    ],
+    "donts": [
+      "Don't use a highlighter colour decoratively, as a background tint, or for a fourth meaning; and don't use flag orange as a highlighter.",
+      "Don't put gradients, glow, or coloured shadows on the page or the cover.",
+      "Don't set headings, buttons or printed product copy in Reenie Beanie.",
+      "Don't replace the book apparatus with a split hero, an app screenshot, or a grid of feature cards.",
+      "Don't apply this system's palette or type to the app UI; only the mark crosses over."
+    ]
+  }
+}

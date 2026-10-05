@@ -1,419 +1,485 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>glosa</title>
-  <meta name="description" content="Aprende idiomas leyendo lo que te gusta. Un lector open source que entiende el contexto: significados, expresiones y gramática de cada oración." />
-  <meta property="og:title" content="glosa — aprende idiomas leyendo" />
-  <meta property="og:description" content="Un lector open source que entiende el contexto: significados, expresiones y gramática de cada oración." />
+  <meta name="description" content="A free, open source reader for learning languages from your own books, on your own computer." />
+  <meta property="og:title" content="glosa — learn a language by reading what you love" />
+  <meta property="og:description" content="A free, open source reader for learning languages from your own books, on your own computer." />
   <meta property="og:image" content="icon-512.png" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <meta name="theme-color" content="#3ba26a" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&display=swap" rel="stylesheet" />
+  <meta name="theme-color" content="#1f2fd1" />
+  <link rel="preload" href="fonts/literata-normal-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="fonts/fonts.css" />
   <style>
     :root {
-      --bg: #ffffff;
-      --bg-soft: #f4f7fc;
-      --surface: #ffffff;
-      --fg: #16181d;
-      --fg-2: #414549;
-      --muted: #6f7680;
-      --line: #e7e9ee;
-      --green: #3ba26a;
-      --green-dark: #2e8656;
-      --new: #cfe1fb;
-      --new-edge: #8fb5ec;
-      --lingq: #ffe49a;
-      --lingq-edge: #e9b730;
-      --expression: #0f8f8a;
-      --phrasal: #6d5bd0;
-      --grammar: #c9efd6;
-      --shadow-lg: 0 18px 48px rgb(16 24 40 / 0.14);
-      --code-bg: #16181d;
-      --code-fg: #e8eaee;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root:not([data-theme="light"]) {
-        --bg: #121418;
-        --bg-soft: #181b20;
-        --surface: #1e2127;
-        --fg: #eef0f3;
-        --fg-2: #c9ccd2;
-        --muted: #949aa4;
-        --line: #2c3038;
-        --new: #24395a;
-        --new-edge: #3e6aa8;
-        --lingq: #5a4a1c;
-        --lingq-edge: #b38b1f;
-        --grammar: #1f4a33;
-        --shadow-lg: 0 18px 48px rgb(0 0 0 / 0.45);
-        --code-bg: #0b0c0f;
-      }
+      --cover: #1f2fd1;
+      --cover-deep: #1726a8;
+      --paper: #f6f7f8;
+      --paper-edge: #e1e4e9;
+      --ink: #1c1b19;
+      --ink-2: #3d3c39;
+      --pencil: #4a4945;
+      --yellow: #ffe94a;
+      --blue: #a5ddff;
+      --pink: #ffa3cc;
+      --flag: #ffb36b;
+      --serif: "Literata", "Iowan Old Style", Georgia, serif;
+      --sans: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+      --hand: "Reenie Beanie", "Segoe Print", cursive;
+      --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+      --line: 1.62;
+      --edge: clamp(8px, 1.6vw, 22px);
+      --margin-col: clamp(190px, 22vw, 300px);
     }
     * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: smooth; scrollbar-color: var(--cover-deep) var(--cover); }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
     body {
       margin: 0;
-      font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--fg);
-      line-height: 1.55;
+      background: var(--cover);
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: clamp(1.02rem, 0.96rem + 0.25vw, 1.16rem);
+      line-height: var(--line);
+      font-optical-sizing: auto;
       -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
-    a { color: inherit; }
-    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
-    /* Grid items default to min-width: auto, so a wide code block would widen the page. */
-    .hero > *, .steps > *, .grid > *, .mock > * { min-width: 0; }
-    body { overflow-x: hidden; }
+    ::selection { background: var(--yellow); color: var(--ink); }
+    a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+    a:hover { text-decoration-thickness: 2px; }
+    :focus-visible { outline: 2.5px solid var(--cover); outline-offset: 3px; border-radius: 3px; }
+    .bookmark :focus-visible, .back :focus-visible { outline-color: #fff; }
+    .skip { position: absolute; left: -999px; top: 8px; background: var(--paper); padding: 0.5rem 1rem; z-index: 50; }
+    .skip:focus { left: 16px; }
 
-    /* Header */
-    header { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
-    .nav { display: flex; align-items: center; gap: 1rem; height: 64px; }
-    .brand { display: flex; align-items: center; gap: 0.55rem; font-weight: 700; font-size: 1.25rem; text-decoration: none; letter-spacing: -0.01em; }
-    .brand img { width: 30px; height: 30px; }
-    .nav nav { margin-left: auto; display: flex; align-items: center; gap: 0.4rem; }
-    .nav nav a { text-decoration: none; color: var(--fg-2); font-weight: 500; padding: 0.4rem 0.7rem; border-radius: 999px; }
-    .nav nav a:hover { background: var(--bg-soft); color: var(--fg); }
-    .lang { border: 1px solid var(--line); background: var(--surface); color: var(--fg); font: inherit; font-weight: 600; font-size: 0.85rem; padding: 0.35rem 0.75rem; border-radius: 999px; cursor: pointer; }
-    @media (max-width: 640px) { .nav nav a.hide-sm { display: none; } }
-
-    .btn { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; text-decoration: none; padding: 0.8rem 1.3rem; border-radius: 999px; border: 1.5px solid transparent; transition: transform 0.15s, background 0.15s; }
-    .btn:hover { transform: translateY(-1px); }
-    .btn-primary { background: var(--green); color: #fff; }
-    .btn-primary:hover { background: var(--green-dark); }
-    .btn-outline { border-color: var(--line); background: var(--surface); }
-    .btn svg { width: 18px; height: 18px; }
-
-    /* Hero */
-    .hero { padding: 72px 0 56px; display: grid; grid-template-columns: 1fr 1.1fr; gap: 56px; align-items: center; }
-    .eyebrow { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; font-weight: 600; color: var(--green-dark); background: color-mix(in srgb, var(--green) 12%, transparent); padding: 0.3rem 0.75rem; border-radius: 999px; }
-    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .eyebrow { color: #7fd4a4; } }
-    h1 { font-size: clamp(2.3rem, 5vw, 3.6rem); line-height: 1.07; letter-spacing: -0.03em; margin: 1rem 0 1.1rem; }
-    h1 .hl { background: linear-gradient(transparent 58%, var(--lingq) 58%); padding: 0 0.1em; }
-    .lead { font-size: 1.15rem; color: var(--fg-2); max-width: 34em; margin: 0 0 1.8rem; }
-    .ctas { display: flex; flex-wrap: wrap; gap: 0.7rem; }
-    .fine { margin-top: 1.1rem; font-size: 0.88rem; color: var(--muted); }
-
-    /* Reader mock */
-    .mock { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow-lg); display: grid; grid-template-columns: 1.25fr 1fr; overflow: hidden; }
-    .mock-text { padding: 26px 24px; font-family: "Source Serif 4", Georgia, serif; font-size: 1.06rem; line-height: 2.05; color: var(--fg); }
-    .mock-text .w { border-radius: 6px; padding: 0.08em 0.18em; }
-    .w.new { background: var(--new); }
-    .w.learn { background: var(--lingq); }
-    .w.sel { background: var(--lingq); box-shadow: 0 0 0 2px var(--lingq-edge); }
-    .w.exp { border-bottom: 2.5px dotted var(--expression); border-radius: 0; padding: 0; }
-    .w.pv { border-bottom: 2.5px solid var(--phrasal); border-radius: 0; padding: 0; }
-    .mock-panel { border-left: 1px solid var(--line); padding: 20px 18px; display: flex; flex-direction: column; gap: 12px; background: var(--bg-soft); font-size: 0.9rem; }
-    .mp-head { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
-    .mp-word { font-size: 1.35rem; font-weight: 700; }
-    .mp-ipa { color: var(--muted); font-size: 0.85rem; }
-    .chip { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.15rem 0.5rem; border-radius: 999px; background: color-mix(in srgb, var(--phrasal) 14%, transparent); color: var(--phrasal); }
-    .mp-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
-    .sugg { background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 0.55rem 0.7rem; }
-    .sugg.best { border-color: var(--green); }
-    .sugg strong { display: flex; align-items: center; gap: 0.4rem; }
-    .sugg .tag { font-size: 0.62rem; font-weight: 700; color: #fff; background: var(--green); padding: 0.1rem 0.4rem; border-radius: 999px; letter-spacing: 0.03em; }
-    .sugg span { color: var(--muted); font-size: 0.78rem; }
-    .levels { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; background: var(--surface); border-radius: 10px; padding: 3px; border: 1px solid var(--line); }
-    .levels i { font-style: normal; text-align: center; font-size: 0.74rem; padding: 0.3rem 0.2rem; border-radius: 7px; color: var(--muted); }
-    .levels i.on { background: var(--lingq); color: var(--fg); font-weight: 600; }
-    .mp-tr { background: var(--surface); border-radius: 12px; padding: 0.55rem 0.7rem; border: 1px solid var(--line); }
-    .mp-tr p { margin: 0.15rem 0 0; }
-
-    /* Sections */
-    section { padding: 76px 0; }
-    .soft { background: var(--bg-soft); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-    h2 { font-size: clamp(1.7rem, 3.4vw, 2.35rem); letter-spacing: -0.02em; line-height: 1.15; margin: 0 0 0.8rem; }
-    .sub { color: var(--fg-2); font-size: 1.08rem; max-width: 40em; margin: 0 0 2.6rem; }
-    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 22px; }
-    .card h3 { margin: 0.75rem 0 0.4rem; font-size: 1.1rem; }
-    .card p { margin: 0; color: var(--fg-2); font-size: 0.96rem; }
-    .ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--green) 13%, transparent); color: var(--green); }
-    .ico svg { width: 22px; height: 22px; }
-    .example { margin-top: 0.8rem; font-size: 0.86rem; background: var(--bg-soft); border-radius: 10px; padding: 0.55rem 0.7rem; color: var(--fg-2); }
-    .example b { color: var(--fg); }
-    .example s { color: var(--muted); }
-
-    /* Comparison */
-    .compare { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; font-size: 0.97rem; }
-    .compare th, .compare td { text-align: left; padding: 0.85rem 1rem; border-bottom: 1px solid var(--line); vertical-align: top; }
-    .compare tr:last-child td { border-bottom: none; }
-    .compare th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; background: var(--bg-soft); }
-    .compare td:first-child { font-family: "Source Serif 4", Georgia, serif; font-style: italic; white-space: nowrap; }
-    .compare .good { color: var(--green); font-weight: 600; }
-    .compare .bad { color: var(--muted); }
-    .table-scroll { overflow-x: auto; border-radius: 18px; }
-
-    /* Steps */
-    .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
-    pre { margin: 0; background: var(--code-bg); color: var(--code-fg); border-radius: 16px; padding: 20px 22px; overflow-x: auto; font-size: 0.9rem; line-height: 1.7; }
-    pre .c { color: #8a919c; }
-    ol.list { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.9rem; color: var(--fg-2); }
-    ol.list b { color: var(--fg); }
-
-    .principles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
-    .principles div { border-top: 3px solid var(--green); padding-top: 0.9rem; }
-    .principles h3 { margin: 0 0 0.3rem; font-size: 1.02rem; }
-    .principles p { margin: 0; color: var(--fg-2); font-size: 0.94rem; }
-
-    .final { text-align: center; }
-    .final .ctas { justify-content: center; }
-    .final img { width: 64px; height: 64px; margin-bottom: 0.6rem; }
-
-    footer { border-top: 1px solid var(--line); padding: 28px 0; color: var(--muted); font-size: 0.88rem; }
-    footer .wrap { display: flex; flex-wrap: wrap; gap: 0.8rem 1.6rem; align-items: center; }
-    footer a { text-decoration: none; }
-    footer a:hover { color: var(--fg); }
-
-    @media (max-width: 960px) {
-      .hero { grid-template-columns: 1fr; gap: 40px; padding-top: 48px; }
-      .grid { grid-template-columns: 1fr 1fr; }
-      .principles { grid-template-columns: 1fr 1fr; }
-      .steps { grid-template-columns: 1fr; }
+    /* The book: the cover shows at the edges, the page sits on it. */
+    .page {
+      position: relative;
+      margin: var(--edge) var(--edge) 0;
+      background-color: var(--paper);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .1 0 0 0 0 .1 0 0 0 0 .12 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+      border-radius: 4px 4px 0 0;
+      box-shadow: inset -14px 0 18px -16px rgb(0 0 0 / 0.22), 0 10px 30px rgb(0 0 0 / 0.28);
     }
-    @media (max-width: 640px) {
-      .wrap { padding: 0 16px; }
-      .levels { grid-template-columns: repeat(4, 1fr); }
-      pre { font-size: 0.8rem; padding: 16px; }
-      .grid, .principles { grid-template-columns: 1fr; }
-      .mock { grid-template-columns: 1fr; }
-      .mock-panel { border-left: none; border-top: 1px solid var(--line); }
-      section { padding: 56px 0; }
+    .leaf { padding: clamp(28px, 4vw, 56px) clamp(20px, 6vw, 96px) clamp(40px, 5vw, 72px); position: relative; }
+    .leaf + .leaf { border-top: 1px dashed var(--paper-edge); }
+    .text-grid { display: grid; grid-template-columns: minmax(0, 1fr) var(--margin-col); column-gap: clamp(24px, 4vw, 64px); }
+    .text-grid > * { min-width: 0; }
+
+    /* Running head and folio, set like a paperback. */
+    .running { display: flex; align-items: center; gap: 1rem; font-family: var(--serif); font-variant: small-caps; letter-spacing: 0.04em; color: var(--ink-2); font-size: 0.92rem; }
+    .running .rule { flex: 1; height: 1px; background: var(--paper-edge); }
+    .running a { text-decoration: none; }
+    .wordmark { display: inline-flex; color: var(--ink); }
+    .wordmark svg { height: 1.9rem; width: auto; display: block; }
+    .folio { text-align: center; font-size: 0.85rem; color: var(--pencil); margin-top: clamp(32px, 5vw, 64px); font-variant-numeric: oldstyle-nums; }
+
+    /* Highlighter: colour only where it means something. */
+    .hl { --c: var(--yellow); background-image: linear-gradient(100deg, transparent 0.12em, var(--c) 0.14em, var(--c) calc(100% - 0.1em), transparent calc(100% - 0.06em)); background-repeat: no-repeat; background-size: 100% 0.82em; background-position: 0 72%; box-decoration-break: clone; -webkit-box-decoration-break: clone; padding: 0 0.12em; margin: 0 -0.06em; border-radius: 0.2em 0.08em 0.24em 0.06em; }
+    .hl.blue { --c: var(--blue); }
+    .hl.pink { --c: var(--pink); }
+        .sweep .hl { background-size: 0% 0.82em; transition: background-size 0.55s cubic-bezier(0.16, 1, 0.3, 1); transition-delay: calc(var(--i, 0) * 110ms); }
+    .sweep.in .hl { background-size: 100% 0.82em; }
+    @media (prefers-reduced-motion: reduce) { .sweep .hl { background-size: 100% 0.82em; transition: none; } }
+
+    /* Pencil glosses in the margin, keyed by small pencil numbers in the text. */
+    .mk { font-family: var(--hand); font-size: 1.35em; color: var(--pencil); vertical-align: 0.4em; line-height: 0; margin-left: 0.08em; }
+    .glosses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.1rem; font-family: var(--hand); color: var(--pencil); font-size: clamp(1.6rem, 1.35rem + 0.6vw, 2rem); line-height: 1.15; }
+    .glosses li { transform: rotate(-1.2deg); }
+    .glosses li:nth-child(2n) { transform: rotate(0.8deg); }
+    .glosses b { font-weight: 400; color: var(--ink); }
+
+    /* First page */
+    .hero { display: flex; flex-direction: column; }
+    .hero .running { margin-right: calc(var(--margin-col) + clamp(24px, 4vw, 64px)); }
+    .hero .text-grid { margin-top: clamp(40px, 9vh, 120px); align-items: start; }
+    h1 { font-family: var(--serif); font-weight: 650; font-size: clamp(2.7rem, 1.3rem + 5.4vw, 6rem); line-height: 1.02; letter-spacing: -0.025em; margin: 0 0 clamp(20px, 3vw, 36px); text-wrap: balance; font-variation-settings: "opsz" 72; }
+    h1 .hl { background-size: 100% 0.62em; background-position: 0 86%; }
+    .hero .sweep .hl { background-size: 0% 0.62em; }
+    .hero .sweep.in .hl { background-size: 100% 0.62em; }
+    .deck { font-size: clamp(1.18rem, 1.05rem + 0.5vw, 1.45rem); line-height: 1.5; max-width: 34em; color: var(--ink); margin: 0; text-wrap: pretty; }
+    .margin { position: relative; padding-top: 0.4rem; }
+
+    /* The bookmark hangs from the top edge with the commands. */
+    .bookmark {
+      --bm-w: max(var(--margin-col), 300px);
+      position: absolute; top: 0; right: clamp(20px, 6vw, 96px); width: var(--bm-w);
+      background: var(--cover); color: #fff; padding: 1.2rem 1.1rem 2.6rem;
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 1.3rem), 0 100%);
+      box-shadow: 0 8px 18px rgb(0 0 0 / 0.22);
+      font-family: var(--sans); z-index: 2;
+    }
+    .bookmark h2 { font-family: var(--serif); font-variant: small-caps; font-size: 1.02rem; font-weight: 600; letter-spacing: 0.04em; margin: 0 0 0.7rem; color: #e4e7ff; }
+    .cmds { font-family: var(--mono); font-size: 0.8rem; line-height: 1.55; margin: 0 0 1rem; white-space: pre; overflow-x: auto; color: #fff; }
+    .cmds .p { color: #d3d8ff; user-select: none; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; font-family: var(--sans); font-weight: 600; font-size: 0.95rem; padding: 0.7rem 1rem; border-radius: 3px; border: 0; cursor: pointer; text-decoration: none; transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s; }
+    .btn:active { transform: translateY(1px); }
+    .btn-paper { background: var(--paper); color: var(--cover); width: 100%; }
+    .btn-paper:hover { background: #fff; }
+    .btn svg { width: 1.05em; height: 1.05em; flex: none; }
+    .bookmark .gh { display: block; margin-top: 0.8rem; color: #fff; font-size: 0.9rem; }
+    .hero .glosses { margin-top: calc(var(--bm-h, 300px) + 1.4rem); }
+
+    /* Page flags stuck to the fore-edge: the navigation. */
+    .flags { position: fixed; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 30; }
+    .flag { display: block; font-family: var(--sans); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em; color: var(--ink); text-decoration: none; padding: 0.45rem 0.7rem 0.45rem 0.85rem; width: 5.8rem; background: var(--flag); opacity: 0.95; border-radius: 2px 0 0 2px; box-shadow: -1px 1px 3px rgb(0 0 0 / 0.18); transform: translateX(1.4rem); transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); border: 0; text-align: left; cursor: pointer; }
+    .flag:hover, .flag:focus-visible { transform: translateX(0.4rem); text-decoration: none; }
+
+    /* Chapter pages */
+    h2.chapter { font-family: var(--serif); font-weight: 600; font-size: clamp(1.9rem, 1.3rem + 2.2vw, 3.1rem); line-height: 1.08; letter-spacing: -0.02em; margin: clamp(28px, 5vw, 64px) 0 clamp(14px, 2vw, 24px); text-wrap: balance; font-variation-settings: "opsz" 60; }
+    .lead { font-size: clamp(1.1rem, 1rem + 0.35vw, 1.3rem); max-width: 36em; color: var(--ink-2); margin: 0 0 clamp(24px, 3vw, 40px); }
+    .passage { font-size: clamp(1.15rem, 1.02rem + 0.55vw, 1.5rem); line-height: 1.85; max-width: 32em; margin: 0; hanging-punctuation: first; }
+    .passage .w { cursor: pointer; border-radius: 0.2em; transition: background-size 0.2s; }
+    .passage .w:hover { text-decoration: underline; text-decoration-color: var(--pencil); text-decoration-style: dotted; text-decoration-thickness: 1.5px; }
+    .passage .drop { float: left; font-size: 3.6em; line-height: 0.82; padding: 0.06em 0.08em 0 0; font-weight: 600; }
+    .legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.6rem; margin: 1.8rem 0 0; padding: 0; list-style: none; font-family: var(--hand); font-size: 1.8rem; line-height: 1.3; color: var(--pencil); }
+    .legend .hl { font-family: var(--serif); font-size: 1rem; color: var(--ink); }
+    .try { font-family: var(--hand); font-size: 1.8rem; line-height: 1.3; color: var(--pencil); margin: 0.6rem 0 0; }
+    .note-lang { font-family: var(--serif); font-style: italic; font-size: 0.9rem; color: var(--pencil); margin-top: 1.4rem; }
+
+    .promises { max-width: 36em; display: flex; flex-direction: column; gap: 1.2rem; }
+    .promises p { margin: 0; font-size: clamp(1.08rem, 1rem + 0.3vw, 1.25rem); text-indent: 1.4em; }
+    .promises p:first-child { text-indent: 0; }
+    .promises b { font-variant: small-caps; letter-spacing: 0.04em; font-weight: 700; }
+
+    /* A book index as the feature list. */
+    .index { columns: 2 17rem; column-gap: clamp(28px, 5vw, 80px); font-size: clamp(1rem, 0.95rem + 0.2vw, 1.12rem); max-width: 62rem; line-height: 1.5; margin: 0; padding: 0; list-style: none; }
+    .index li { break-inside: avoid; margin: 0 0 0.9rem; padding-left: 1.2em; text-indent: -1.2em; }
+    .index .letter-row { font-family: var(--serif); font-variant: small-caps; font-weight: 700; font-size: 1rem; letter-spacing: 0.04em; text-transform: lowercase; color: var(--pencil); margin: 1.2rem 0 0.4rem; padding: 0; text-indent: 0; break-after: avoid; }
+    .index .letter-row:first-child { margin-top: 0; }
+    .index .term { font-weight: 650; }
+    .index .sub { display: block; color: var(--ink-2); }
+    .index i { color: var(--pencil); }
+
+    /* Errata slip tucked into the book. */
+    .errata { margin-top: clamp(28px, 4vw, 48px); max-width: 30rem; background: #fff; padding: 1rem 1.2rem 1.1rem; transform: rotate(-1.4deg); box-shadow: 0 3px 10px rgb(0 0 0 / 0.12); font-size: 0.98rem; }
+    .errata h3 { font-family: var(--serif); font-variant: small-caps; letter-spacing: 0.05em; font-size: 1rem; margin: 0 0 0.35rem; font-weight: 700; }
+    .errata p { margin: 0; color: var(--ink-2); }
+
+    /* Appendix */
+    .steps { counter-reset: s; list-style: none; padding: 0; margin: 0; max-width: 40rem; display: flex; flex-direction: column; gap: 1.4rem; }
+    .steps li { counter-increment: s; display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); gap: 0.4rem; }
+    .steps li::before { content: counter(s); font-family: var(--hand); font-size: 2.1rem; line-height: 1; color: var(--pencil); }
+    .steps p { margin: 0 0 0.5rem; }
+    pre.code { margin: 0; font-family: var(--mono); font-size: 0.92rem; line-height: 1.6; background: #eaedf1; border-radius: 3px; padding: 0.8rem 1rem; overflow-x: auto; color: var(--ink); }
+    pre.code .p { color: #66645e; user-select: none; }
+    .copy-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.6rem; }
+    .btn-cover { background: var(--cover); color: #fff; }
+    .btn-cover:hover { background: var(--cover-deep); }
+    .btn-line { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+    .btn-line:hover { background: var(--ink); color: var(--paper); }
+
+    /* The back cover closes the book. */
+    .back { color: #fff; padding: clamp(56px, 9vw, 120px) clamp(20px, 7vw, 110px) clamp(40px, 6vw, 72px); }
+    /* The title on a paper label pasted to the cover, as on a cloth-bound book. */
+    .back .label { display: inline-block; background: var(--paper); color: var(--ink); padding: clamp(14px, 2vw, 26px) clamp(20px, 3vw, 40px) clamp(10px, 1.6vw, 20px); box-shadow: 0 2px 6px rgb(0 0 0 / 0.25); transform: rotate(-1deg); }
+    .back .label svg { height: clamp(3.4rem, 2.6rem + 5vw, 7.5rem); width: auto; display: block; }
+    .blurb { font-family: var(--serif); font-style: italic; font-size: clamp(1.4rem, 1.1rem + 1.4vw, 2.3rem); line-height: 1.3; max-width: 22em; margin: clamp(20px, 3vw, 36px) 0 clamp(28px, 4vw, 44px); text-wrap: balance; }
+    .back .btn-paper { width: auto; }
+    .back .btn-ghost { background: transparent; color: #fff; box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.7); }
+    .back .btn-ghost:hover { background: rgb(255 255 255 / 0.12); }
+    .colophon { margin-top: clamp(48px, 7vw, 96px); padding-top: 1.2rem; border-top: 1px solid rgb(255 255 255 / 0.25); font-family: var(--sans); font-size: 0.85rem; color: #cfd4ff; display: flex; flex-wrap: wrap; gap: 0.4rem 1.6rem; }
+    .colophon a { color: #fff; }
+
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; background: var(--ink); color: var(--paper); font-family: var(--sans); font-size: 0.9rem; padding: 0.6rem 1rem; border-radius: 3px; transition: opacity 0.2s, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); pointer-events: none; z-index: 60; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 860px) {
+      .hero .running { margin-right: 0; }
+      .text-grid { grid-template-columns: minmax(0, 1fr); }
+      .running > span:not(.rule):first-child { display: none; }
+      .hero .running > span:not(.rule) { display: none; }
+      .bookmark { position: relative; right: auto; width: auto; order: -1; margin: calc(-1 * clamp(28px, 4vw, 56px)) 0 24px; padding-bottom: 2.4rem; }
+      .hero .text-grid { margin-top: 28px; }
+      .hero .glosses { margin-top: 1.2rem; }
+      .glosses { font-size: 1.6rem; }
+      .flags { position: static; transform: none; flex-direction: row; justify-content: flex-end; gap: 4px; padding: 10px var(--edge) 0; margin-bottom: -2px; }
+      .flag { width: auto; transform: none; border-radius: 2px 2px 0 0; padding: 0.4rem 0.65rem 0.5rem; box-shadow: none; }
+      .flag:hover, .flag:focus-visible { transform: translateY(-2px); }
+      .page { margin-top: 0; }
+      pre.code { font-size: 0.8rem; }
     }
   </style>
 </head>
 <body>
-  <header>
-    <div class="wrap nav">
-      <a class="brand" href="#"><img src="icon.svg" alt="" /> glosa</a>
-      <nav>
-        <a class="hide-sm" href="#como" data-i18n="nav.how">Cómo funciona</a>
-        <a class="hide-sm" href="#instalar" data-i18n="nav.install">Instalar</a>
-        <a href="https://github.com/CoKeFish/glosa" rel="noopener">GitHub</a>
-        <button class="lang" id="lang" type="button" aria-label="Change language">EN</button>
-      </nav>
-    </div>
-  </header>
+  <a class="skip" href="#read" data-i18n="skip">Skip to the page</a>
 
-  <main>
-    <div class="wrap hero">
-      <div>
-        <span class="eyebrow" data-i18n="hero.eyebrow">Open source · gratis · en tu equipo</span>
-        <h1 data-i18n-html="hero.title">Aprende idiomas <span class="hl">leyendo</span> lo que te gusta</h1>
-        <p class="lead" data-i18n="hero.lead">Importa tus libros y artículos, y lee con un panel que entiende el contexto: el significado que tiene cada palabra en esa oración, las expresiones y phrasal verbs, y la gramática. Tu vocabulario crece mientras lees.</p>
-        <div class="ctas">
-          <a class="btn btn-primary" href="#instalar" data-i18n="hero.cta">Empezar a leer</a>
-          <a class="btn btn-outline" href="https://github.com/CoKeFish/glosa" rel="noopener">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.25.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.04.74.8 1.19 1.83 1.19 3.08 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
-            <span data-i18n="hero.code">Ver el código</span>
-          </a>
-        </div>
-        <p class="fine" data-i18n="hero.fine">En desarrollo temprano. Inglés hoy; más idiomas en camino.</p>
-      </div>
+  <nav class="flags" aria-label="Sections">
+    <a class="flag" href="#read" data-i18n="nav.read">Page</a>
+    <a class="flag" href="#index" data-i18n="nav.index">Index</a>
+    <a class="flag" href="#install" data-i18n="nav.install">Install</a>
+    <button class="flag" id="lang" type="button" aria-label="Español">ES</button>
+  </nav>
 
-      <div class="mock" aria-label="Vista del lector" data-i18n-aria="mock.aria">
-        <div class="mock-text" lang="en">
-          In <span class="w new">relating</span> the <span class="w new">circumstances</span> which have <span class="w pv">led to</span> my <span class="w learn">confinement</span>, I am aware of a natural <span class="w learn">doubt</span>. It is a fact that the <span class="w exp">bulk of</span> humanity is too limited to <span class="w new">weigh</span> those <span class="w new">phenomena</span> which <span class="w sel">lie</span> outside its common experience.
-        </div>
-        <div class="mock-panel">
-          <div class="mp-head"><span class="mp-word">lie</span><span class="mp-ipa">/laɪ/</span></div>
-          <span class="mp-label" data-i18n="mock.suggested">Significados sugeridos</span>
-          <div class="sugg best"><strong><span data-i18n="mock.s1">estar ubicado</span> <span class="tag" data-i18n="mock.fits">ENCAJA MEJOR</span></strong><span>be situated</span></div>
-          <div class="sugg"><strong data-i18n="mock.s2">mentir</strong><span>tell an untruth</span></div>
-          <div class="levels"><i class="on" data-i18n="mock.l1">Nueva</i><i data-i18n="mock.l2">Reconocida</i><i data-i18n="mock.l3">Familiar</i><i data-i18n="mock.l4">Aprendida</i></div>
-          <div class="mp-tr"><span class="mp-label" data-i18n="mock.phrase">Frase · lie outside</span><p data-i18n="mock.tr">estar fuera</p></div>
-        </div>
-      </div>
-    </div>
+  <main class="page">
+    <section class="leaf hero" aria-labelledby="title">
+      <header class="running">
+        <a class="wordmark" href="#" aria-label="glosa"><svg viewBox="0 0 109 38" aria-hidden="true"><use href="#wm"/></svg></a>
+        <span class="rule"></span>
+        <span data-i18n="running">a reader for learning languages</span>
+      </header>
 
-    <section class="soft" id="como">
-      <div class="wrap">
-        <h2 data-i18n="f.title">Un lector que entiende la oración, no solo la palabra</h2>
-        <p class="sub" data-i18n="f.sub">La mayoría de herramientas te dan la lista del diccionario y te dejan adivinar. glosa lee la oración entera para darte el significado que encaja.</p>
-        <div class="grid">
-          <div class="card">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Zm0 0A2 2 0 0 0 6 21.5h13"/><path d="M9 8h6M9 12h4"/></svg></div>
-            <h3 data-i18n="f1.t">Significados en contexto</h3>
-            <p data-i18n="f1.p">Ordena los significados según cómo se usa la palabra: forma verbal, si lleva objeto, la preposición que la sigue y la traducción de la oración.</p>
-            <div class="example" data-i18n-html="f1.e"><i>which have <b>led to</b></i> → <b>llevar a</b>, <s>emplomar</s></div>
-          </div>
-          <div class="card">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8h10M7 12h6"/><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg></div>
-            <h3 data-i18n="f2.t">Expresiones y phrasal verbs</h3>
-            <p data-i18n="f2.p">Detecta unas 13.000 expresiones y los phrasal verbs, aunque estén conjugados o separados. Un clic muestra la expresión; otro, la palabra.</p>
-            <div class="example" data-i18n-html="f2.e"><i><b>by virtue of</b></i> → <b>en virtud de</b></div>
-          </div>
-          <div class="card">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg></div>
-            <h3 data-i18n="f3.t">Gramática explicada</h3>
-            <p data-i18n="f3.p">Marca las estructuras de cada oración (presente perfecto, pasiva, oraciones de relativo, comparativos…) y te explica qué significan.</p>
-            <div class="example" data-i18n-html="f3.e"><i>we <b>are made</b> conscious</i> → voz pasiva</div>
-          </div>
-          <div class="card">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg></div>
-            <h3 data-i18n="f4.t">Traducción local con IA</h3>
-            <p data-i18n="f4.p">Un modelo de traducción corre en tu propio equipo, gratis y sin conexión, y lee la oración para elegir el sentido. Si prefieres, usa Claude, GPT o DeepSeek.</p>
-            <div class="example" data-i18n-html="f4.e"><i><b>In relating</b> the circumstances…</i> → <b>Al relatar</b></div>
-          </div>
-          <div class="card">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg></div>
-            <h3 data-i18n="f5.t">Pronunciación</h3>
-            <p data-i18n="f5.p">Grabaciones reales de Wiktionary para las palabras y voces neuronales locales (Kokoro) para frases y oraciones.</p>
-          </div>
-          <div class="card">
-            <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="16" rx="2"/><path d="M7 4V2M21 8v12a2 2 0 0 1-2 2H9"/><path d="m7 12 2 2 4-4"/></svg></div>
-            <h3 data-i18n="f6.t">Vocabulario y repaso</h3>
-            <p data-i18n="f6.p">Cada palabra que consultas se guarda con su nivel (nueva, reconocida, familiar, aprendida) y vuelve en repasos espaciados.</p>
-          </div>
-        </div>
-      </div>
-    </section>
+      <aside class="bookmark" id="bookmark" aria-labelledby="bm-title">
+        <h2 id="bm-title" data-i18n="bm.title">Install in two commands</h2>
+        <pre class="cmds"><span class="p">$ </span>git clone \
+https://github.com/CoKeFish/glosa
+<span class="p">$ </span>cd glosa &amp;&amp; docker compose up -d</pre>
+        <button class="btn btn-paper" type="button" data-copy>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="6.5" y="6.5" width="10" height="11" rx="1.5"/><path d="M13.5 6.5V4a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 4v9A1.5 1.5 0 0 0 5 14.5h1.5"/></svg>
+          <span data-i18n="bm.copy">Copy commands</span>
+        </button>
+        <a class="gh" href="https://github.com/CoKeFish/glosa" rel="noopener" data-i18n="bm.gh">Read the code on GitHub →</a>
+      </aside>
 
-    <section>
-      <div class="wrap">
-        <h2 data-i18n="c.title">El contexto cambia la traducción</h2>
-        <p class="sub" data-i18n="c.sub">Fragmentos reales de «The Tomb», de H. P. Lovecraft. Un traductor que solo ve el fragmento adivina; glosa le pasa la oración entera.</p>
-        <div class="table-scroll">
-          <table class="compare">
-            <thead><tr><th data-i18n="c.h1">Selección</th><th data-i18n="c.h2">Sin contexto</th><th data-i18n="c.h3">glosa, con la oración</th></tr></thead>
-            <tbody>
-              <tr><td>lie outside</td><td class="bad">miente afuera</td><td class="good">estar fuera</td></tr>
-              <tr><td>In relating</td><td class="bad">En relación con</td><td class="good">Al relatar</td></tr>
-              <tr><td>led to</td><td class="bad" data-i18n="c.none">(sin traducción)</td><td class="good">han llevado a</td></tr>
-              <tr><td>broader</td><td class="bad">abierto, completo</td><td class="good">más amplio</td></tr>
-            </tbody>
-          </table>
+      <div class="text-grid">
+        <div class="sweep" data-sweep>
+          <h1 id="title" data-i18n-html="h1">Learn a language by <span class="hl" style="--i:2">reading</span> what you love.</h1>
+          <p class="deck" data-i18n-html="deck">glosa is a free, open source reader. Bring <span class="hl" style="--i:4">your own books</span><span class="mk">1</span> and articles, read them with every word marked by how well you know it, and keep what you learn: <span class="hl" style="--i:5">for free</span><span class="mk">2</span>, on <span class="hl" style="--i:6">your own computer</span><span class="mk">3</span>.</p>
         </div>
-      </div>
-    </section>
-
-    <section class="soft" id="instalar">
-      <div class="wrap steps">
-        <div>
-          <h2 data-i18n="i.title">Corre en tu ordenador</h2>
-          <p class="sub" style="margin-bottom:1.6rem" data-i18n="i.sub">Todo vive en contenedores: solo necesitas Docker. Tus libros y tu vocabulario se quedan en tu máquina.</p>
-          <ol class="list">
-            <li data-i18n-html="i.s1"><b>Clona el repositorio</b> y levanta los servicios con Docker Compose.</li>
-            <li data-i18n-html="i.s2"><b>Opcional:</b> instala <a href="https://ollama.com" rel="noopener">Ollama</a> y el modelo de traducción para traducir frases con IA local.</li>
-            <li data-i18n-html="i.s3"><b>Abre</b> <code>localhost:5174</code>, importa un EPUB, TXT o HTML, y empieza a leer.</li>
+        <div class="margin">
+          <ol class="glosses" aria-label="Notes">
+            <li data-i18n-html="g1">¹ EPUB, TXT, HTML, or <b>paste</b> any text</li>
+            <li data-i18n-html="g2">² no account, no subscription. <b>AGPL</b></li>
+            <li data-i18n-html="g3">³ nothing leaves it unless <b>you</b> pick a cloud AI</li>
           </ol>
         </div>
-        <pre><code><span class="c"># 1. glosa</span>
-git clone https://github.com/CoKeFish/glosa
-cd glosa
-docker compose up -d
-
-<span class="c" data-i18n="i.c2"># 2. traducción local (opcional)</span>
-ollama pull translategemma:4b
-
-<span class="c" data-i18n="i.c3"># 3. abre http://localhost:5174</span></code></pre>
       </div>
+      <p class="folio" aria-hidden="true">1</p>
     </section>
 
-    <section>
-      <div class="wrap">
-        <h2 data-i18n="p.title">Hecho para quien lee</h2>
-        <div class="principles" style="margin-top:2rem">
-          <div><h3 data-i18n="p1.t">Tus textos</h3><p data-i18n="p1.p">Lees lo que tú eliges, no lecciones de un catálogo.</p></div>
-          <div><h3 data-i18n="p2.t">Tus datos</h3><p data-i18n="p2.p">Todo se guarda en tu equipo. Exporta tu vocabulario cuando quieras.</p></div>
-          <div><h3 data-i18n="p3.t">Sin suscripción</h3><p data-i18n="p3.p">Gratis. La IA en la nube es opcional y ves cuánto cuesta cada consulta.</p></div>
-          <div><h3 data-i18n="p4.t">Abierto</h3><p data-i18n="p4.p">Código AGPL-3.0. Los idiomas se añaden como paquetes.</p></div>
+    <section class="leaf" id="read" aria-labelledby="read-title">
+      <header class="running"><span data-i18n="running">a reader for learning languages</span><span class="rule"></span><span data-i18n="r2">a page, read</span></header>
+      <div class="text-grid">
+        <div>
+          <h2 class="chapter" id="read-title" data-i18n="read.title">A page, as glosa reads it</h2>
+          <p class="lead" data-i18n="read.lead">Every word carries its colour: new, being learned, or known. Click one and you get the meaning it has in that sentence. Detected expressions are marked too, so you know where they start and end.</p>
+          <div class="sweep" data-sweep>
+            <p class="passage" lang="en" id="passage">In <span class="w hl blue" style="--i:0">relating</span> the circumstances which have <span class="w hl pink" style="--i:1">led to</span><span class="mk">1</span> my <span class="w hl" style="--i:2">confinement</span><span class="mk">2</span> within this refuge for the demented, I am aware that my present position will create a natural <span class="w hl" style="--i:3">doubt</span> of the authenticity of my narrative. It is an unfortunate fact that <span class="w hl pink" style="--i:4">the bulk of</span><span class="mk">3</span> humanity is too limited in its mental vision to <span class="w hl blue" style="--i:5">weigh</span> with patience and intelligence those isolated phenomena, seen and felt only by a psychologically sensitive few, which <span class="w hl" style="--i:6">lie</span><span class="mk">4</span> outside its common experience.</p>
+          </div>
+          <ul class="legend" aria-label="Legend">
+            <li><span class="hl blue">new</span> <span data-i18n="lg.new">never looked up</span></li>
+            <li><span class="hl">learning</span> <span data-i18n="lg.learn">saved, coming back in review</span></li>
+            <li><span class="hl pink">expression</span> <span data-i18n="lg.exp">found for you</span></li>
+            <li><span data-i18n="lg.known">plain: known</span></li>
+          </ul>
+          <p class="try" data-i18n="try">try it: click a word in the passage to change how well you know it</p>
+        </div>
+        <div class="margin">
+          <ol class="glosses" aria-label="Glosses">
+            <li>¹ <b>led to</b> → llevar a</li>
+            <li>² <b>confinement</b> → encierro</li>
+            <li>³ <b>the bulk of</b> → la mayor parte de</li>
+            <li data-i18n-html="g.lie">⁴ <b>lie</b> → estar situado. Not “mentir”: this sentence decides</li>
+          </ol>
+          <p class="note-lang" data-i18n="note.lang">Meanings come in your language; here, Spanish. Text: H. P. Lovecraft, “The Tomb” (1917).</p>
         </div>
       </div>
+      <p class="folio" aria-hidden="true">2</p>
     </section>
 
-    <section class="soft final">
-      <div class="wrap">
-        <img src="icon.svg" alt="" />
-        <h2 data-i18n="end.title">Tu próximo libro, en otro idioma</h2>
-        <p class="sub" style="margin:0 auto 1.8rem" data-i18n="end.sub">glosa está en desarrollo temprano. Pruébalo, abre un issue o propón un idioma.</p>
-        <div class="ctas">
-          <a class="btn btn-primary" href="https://github.com/CoKeFish/glosa" rel="noopener" data-i18n="end.cta">Ir a GitHub</a>
+    <section class="leaf" aria-labelledby="why-title">
+      <header class="running"><span data-i18n="running">a reader for learning languages</span><span class="rule"></span><span data-i18n="r3">three promises</span></header>
+      <div class="text-grid">
+        <div>
+          <h2 class="chapter" id="why-title" data-i18n="why.title">Yours, all of it</h2>
+          <div class="promises">
+            <p data-i18n-html="p1"><b>Your own texts.</b> Read the novel on your nightstand, the newspaper you follow, the blog you like. No catalogue of lessons chosen for you: import an EPUB, a text file, a web page, or paste anything.</p>
+            <p data-i18n-html="p2"><b>Your own computer.</b> glosa runs on your machine with Docker. Its dictionary, its translation model and its voices can all run locally, so your books and your vocabulary stay with you. A cloud AI is there if you want it, and you see what every request costs.</p>
+            <p data-i18n-html="p3"><b>Free, for good.</b> No account, no subscription, no premium tier. The code is open under the AGPL, and your vocabulary exports to a plain CSV whenever you like.</p>
+          </div>
+        </div>
+        <div class="margin">
+          <ol class="glosses" aria-label="Notes">
+            <li data-i18n-html="m1">the translation model runs on your <b>CPU</b></li>
+            <li data-i18n-html="m2">the graphics card is <b>optional</b></li>
+          </ol>
         </div>
       </div>
+      <p class="folio" aria-hidden="true">3</p>
+    </section>
+
+    <section class="leaf" id="index" aria-labelledby="index-title">
+      <header class="running"><span data-i18n="running">a reader for learning languages</span><span class="rule"></span><span data-i18n="r4">index</span></header>
+      <h2 class="chapter" id="index-title" data-i18n="index.title">Index</h2>
+      <ul class="index">
+        <li class="letter-row" aria-hidden="true">D</li><li><span class="term" data-i18n="i.dict">dictionary</span>, <span data-i18n="i.dict1">Wiktionary in two editions</span><span class="sub" data-i18n="i.dict2">meanings ranked for the sentence they appear in</span></li>
+        <li class="letter-row" aria-hidden="true">E</li><li><span class="term" data-i18n="i.exp">expressions</span>, <span data-i18n="i.exp1">about 13,000, detected as you read</span><span class="sub" data-i18n-html="i.exp2"><i>see also</i> phrasal verbs</span></li>
+        <li class="letter-row" aria-hidden="true">G</li><li><span class="term" data-i18n="i.gram">grammar</span>, <span data-i18n="i.gram1">structures marked in each sentence and explained</span></li>
+        <li class="letter-row" aria-hidden="true">I</li><li><span class="term" data-i18n="i.imp">importing</span>, <span data-i18n="i.imp1">EPUB, TXT, HTML or pasted text</span></li>
+        <li class="letter-row" aria-hidden="true">P</li><li><span class="term" data-i18n="i.pv">phrasal verbs</span>, <span data-i18n="i.pv1">found even when inflected or split</span><span class="sub" data-i18n="i.pv2">“looked it up” is one unit, not three words</span></li>
+        <li><span class="term" data-i18n="i.pron">pronunciation</span>, <span data-i18n="i.pron1">real recordings for words; local voices for phrases</span></li>
+        <li class="letter-row" aria-hidden="true">R</li><li><span class="term" data-i18n="i.rev">review</span>, <span data-i18n="i.rev1">spaced; words come back when you are about to forget them</span></li>
+        <li class="letter-row" aria-hidden="true">T</li><li><span class="term" data-i18n="i.tr">translation</span>, <span data-i18n="i.tr1">a local model on your CPU, LibreTranslate, or a cloud AI</span><span class="sub" data-i18n="i.tr2">every translation is kept; the same text is never translated twice</span></li>
+        <li class="letter-row" aria-hidden="true">V</li><li><span class="term" data-i18n="i.voc">vocabulary</span>, <span data-i18n="i.voc1">four levels from new to learned; export to CSV</span></li>
+      </ul>
+      <aside class="errata">
+        <h3 data-i18n="errata.title">Errata</h3>
+        <p data-i18n="errata.p">Not in this edition: studying languages other than English (meanings already come in Spanish, French, Portuguese or Italian), a phone app, and a hosted version. glosa is in early development.</p>
+      </aside>
+      <p class="folio" aria-hidden="true">4</p>
+    </section>
+
+    <section class="leaf" id="install" aria-labelledby="install-title">
+      <header class="running"><span data-i18n="running">a reader for learning languages</span><span class="rule"></span><span data-i18n="r5">appendix</span></header>
+      <h2 class="chapter" id="install-title" data-i18n="ins.title">Appendix: installing glosa</h2>
+      <p class="lead" data-i18n="ins.lead">All you need is Docker. Everything else runs in containers, and nothing is installed on your system.</p>
+      <ol class="steps">
+        <li><div><p data-i18n="s1">Get the code and start it.</p>
+          <pre class="code"><span class="p">$ </span>git clone \
+https://github.com/CoKeFish/glosa
+<span class="p">$ </span>cd glosa &amp;&amp; docker compose up -d</pre></div></li>
+        <li><div><p data-i18n-html="s2">Optional: for local translation, install <a href="https://ollama.com" rel="noopener">Ollama</a> and its translation model.</p>
+          <pre class="code"><span class="p">$ </span>ollama pull translategemma:4b</pre></div></li>
+        <li><div><p data-i18n-html="s3">Open <a href="http://localhost:5174">localhost:5174</a>, import a book, and start reading.</p></div></li>
+      </ol>
+      <div class="copy-row">
+        <button class="btn btn-cover" type="button" data-copy>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="6.5" y="6.5" width="10" height="11" rx="1.5"/><path d="M13.5 6.5V4a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 4v9A1.5 1.5 0 0 0 5 14.5h1.5"/></svg>
+          <span data-i18n="bm.copy">Copy commands</span>
+        </button>
+        <a class="btn btn-line" href="https://github.com/CoKeFish/glosa#readme" rel="noopener" data-i18n="ins.readme">Read the README</a>
+      </div>
+      <p class="folio" aria-hidden="true">5</p>
     </section>
   </main>
 
-  <footer>
-    <div class="wrap">
+  <footer class="back" aria-labelledby="back-title">
+    <h2 id="back-title" class="label" style="margin:0" aria-label="glosa"><svg viewBox="0 0 109 38" aria-hidden="true"><use href="#wm"/></svg></h2>
+    <p class="blurb" data-i18n="blurb">A free reader for learning languages from your own books, on your own computer.</p>
+    <div class="copy-row">
+      <a class="btn btn-paper" href="https://github.com/CoKeFish/glosa" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.25.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.04.74.8 1.19 1.83 1.19 3.08 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        <span data-i18n="back.gh">Get it on GitHub</span>
+      </a>
+      <button class="btn btn-ghost" type="button" data-copy><span data-i18n="bm.copy">Copy commands</span></button>
+    </div>
+    <div class="colophon">
       <span>glosa · AGPL-3.0</span>
-      <a href="https://github.com/CoKeFish/glosa" rel="noopener">GitHub</a>
-      <a href="https://github.com/CoKeFish/glosa/issues" rel="noopener" data-i18n="foot.issues">Sugerencias</a>
-      <span data-i18n="foot.credits">Diccionario: Wiktionary (CC BY-SA) vía Kaikki.</span>
+      <a href="https://github.com/CoKeFish/glosa/issues" rel="noopener" data-i18n="col.issues">Ideas and bugs</a>
+      <span data-i18n="col.dict">Dictionary: Wiktionary (CC BY-SA), via Kaikki</span>
+      <span data-i18n="col.type">Set in Literata, Schibsted Grotesk and Reenie Beanie</span>
     </div>
   </footer>
 
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="wm" viewBox="0 0 109 38"><path d="M1 15.2C30 14.2 70 13.6 108 13.1L108.6 29.4C70 30 32 30.6 0.4 31.4Z" fill="#ffe94a"/>
+  <path transform="translate(1.00 27.00) scale(0.04 -0.04)" d="M280 -230Q206 -230 156 -222Q106 -213 78 -198Q49 -183 37 -162Q25 -141 25 -115Q25 -87 38 -67Q52 -47 80 -34Q107 -22 148 -17V-12Q90 -2 66 25Q42 52 42 83Q42 117 61 142Q80 168 123 207V211Q89 228 67 260Q45 292 45 347Q45 405 76 446Q107 487 161 510Q216 532 288 532Q315 532 342 527Q368 523 394 515Q419 507 441 495Q454 555 475 590Q496 625 539 625Q560 625 578 616Q596 607 606 591Q617 575 617 553Q617 526 599 505Q580 484 549 484Q529 484 517 495Q506 505 496 521L481 546Q474 531 469 517Q464 503 459 483Q487 458 505 424Q523 390 523 353Q523 300 495 259Q468 218 416 194Q364 170 291 170Q245 170 208 179Q171 187 147 198Q132 182 124 171Q116 160 116 149Q116 136 123 127Q131 118 148 114Q165 110 192 110H365Q480 110 536 76Q592 42 592 -34Q592 -60 583 -87Q574 -115 553 -140Q532 -166 496 -186Q461 -206 407 -218Q354 -230 280 -230ZM286 -208Q336 -208 370 -193Q404 -177 421 -151Q438 -125 438 -94Q438 -54 412 -36Q387 -18 342 -18H179Q164 -33 157 -55Q150 -76 150 -95Q150 -152 183 -180Q216 -208 286 -208ZM285 192Q326 192 346 230Q366 267 366 346Q366 432 344 471Q321 511 280 511Q238 511 220 472Q202 434 202 355Q202 273 224 232Q247 192 285 192Z M648 0V12L685 15Q702 17 707 26Q712 36 712 62V686Q712 718 706 730Q699 743 677 744L639 748L640 759L864 768L871 761V61Q871 36 877 27Q883 17 902 15L940 12V0Z M1271 -14Q1190 -14 1129 17Q1068 47 1035 106Q1001 164 1001 247Q1001 339 1037 402Q1072 466 1136 499Q1201 532 1288 532Q1367 532 1427 502Q1486 473 1519 415Q1552 357 1552 272Q1552 184 1518 120Q1483 55 1420 21Q1357 -14 1271 -14ZM1287 3Q1320 3 1342 26Q1363 48 1373 102Q1383 156 1383 251Q1383 327 1376 378Q1368 429 1354 459Q1339 489 1319 502Q1298 515 1272 515Q1238 515 1215 493Q1192 471 1181 419Q1170 368 1170 277Q1170 173 1184 113Q1199 53 1225 28Q1252 3 1287 3Z M1650 -17 1635 180 1650 182Q1666 116 1690 78Q1714 39 1747 22Q1781 5 1824 5Q1871 5 1901 30Q1930 55 1930 102Q1930 134 1913 152Q1896 169 1868 179Q1841 189 1808 198Q1770 210 1739 223Q1708 236 1686 254Q1663 272 1651 300Q1639 327 1639 367Q1639 416 1663 454Q1686 491 1730 511Q1773 532 1834 532Q1875 532 1907 522Q1939 511 1967 493L1980 532H1991L2005 365L1988 367Q1965 444 1930 479Q1895 514 1838 514Q1793 514 1768 494Q1743 475 1743 438Q1743 407 1760 389Q1778 371 1806 361Q1835 350 1869 339Q1904 328 1934 315Q1964 302 1987 283Q2010 264 2022 236Q2035 208 2035 167Q2035 110 2008 69Q1981 29 1933 8Q1886 -14 1824 -14Q1785 -14 1746 -3Q1707 9 1677 30L1663 -17Z M2252 -14Q2184 -14 2146 21Q2108 56 2108 122Q2108 175 2135 207Q2162 239 2224 256Q2287 273 2394 278V407Q2394 446 2385 470Q2376 493 2356 504Q2336 515 2305 515Q2277 515 2245 504Q2213 494 2197 478Q2222 449 2235 431Q2247 412 2251 401Q2256 389 2256 379Q2256 358 2238 343Q2220 327 2187 327Q2150 327 2132 345Q2115 363 2115 392Q2115 424 2141 456Q2168 489 2217 511Q2267 532 2334 532Q2403 532 2452 513Q2501 495 2527 451Q2553 408 2553 334V86Q2553 60 2563 49Q2573 37 2590 37Q2601 37 2611 40Q2622 43 2633 48L2638 41Q2611 9 2579 -3Q2547 -14 2518 -14Q2465 -14 2438 11Q2410 37 2402 81Q2388 48 2368 27Q2347 6 2319 -4Q2291 -14 2252 -14ZM2325 41Q2347 41 2362 52Q2377 63 2386 83Q2394 102 2394 128V263Q2346 262 2318 250Q2289 238 2277 212Q2265 186 2265 140Q2265 88 2280 65Q2295 41 2325 41Z" fill="currentColor"/></symbol>
+  </svg>
+
   <script>
-    // English copy; Spanish is the page as written.
-    const EN = {
-      "nav.how": "How it works", "nav.install": "Install",
-      "hero.eyebrow": "Open source · free · on your computer",
-      "hero.title": "Learn languages by <span class=\"hl\">reading</span> what you love",
-      "hero.lead": "Import your books and articles, and read with a panel that understands context: the meaning each word has in that sentence, the expressions and phrasal verbs, and the grammar. Your vocabulary grows as you read.",
-      "hero.cta": "Start reading", "hero.code": "View the code",
-      "hero.fine": "Early development. English today; more languages on the way.",
-      "mock.aria": "Reader preview", "mock.suggested": "Suggested meanings", "mock.s1": "be situated", "mock.fits": "BEST FIT",
-      "mock.s2": "tell a lie", "mock.l1": "New", "mock.l2": "Recognized", "mock.l3": "Familiar", "mock.l4": "Learned",
-      "mock.phrase": "Phrase · lie outside", "mock.tr": "be outside",
-      "f.title": "A reader that understands the sentence, not just the word",
-      "f.sub": "Most tools hand you the dictionary list and let you guess. glosa reads the whole sentence to give you the meaning that fits.",
-      "f1.t": "Meanings in context", "f1.p": "Ranks meanings by how the word is used: verb form, whether it takes an object, the preposition after it and the sentence's translation.",
-      "f1.e": "<i>which have <b>led to</b></i> → <b>bring about</b>, <s>cover with lead</s>",
-      "f2.t": "Expressions and phrasal verbs", "f2.p": "Detects some 13,000 expressions and phrasal verbs, even inflected or split. One click shows the expression; another, the word.",
-      "f2.e": "<i><b>by virtue of</b></i> → <b>because of</b>",
-      "f3.t": "Grammar explained", "f3.p": "Marks the structures in each sentence (present perfect, passive, relative clauses, comparatives…) and explains what they mean.",
-      "f3.e": "<i>we <b>are made</b> conscious</i> → passive voice",
-      "f4.t": "Local AI translation", "f4.p": "A translation model runs on your own computer, free and offline, and reads the sentence to pick the sense. If you prefer, use Claude, GPT or DeepSeek.",
-      "f4.e": "<i><b>In relating</b> the circumstances…</i> → <b>Al relatar</b>",
-      "f5.t": "Pronunciation", "f5.p": "Real recordings from Wiktionary for words, and local neural voices (Kokoro) for phrases and sentences.",
-      "f6.t": "Vocabulary and review", "f6.p": "Every word you look up is saved with its level (new, recognized, familiar, learned) and comes back in spaced reviews.",
-      "c.title": "Context changes the translation",
-      "c.sub": "Real fragments from H. P. Lovecraft's “The Tomb”, translated into Spanish. A translator that only sees the fragment guesses; glosa gives it the whole sentence.",
-      "c.h1": "Selection", "c.h2": "Without context", "c.h3": "glosa, with the sentence", "c.none": "(no translation)",
-      "i.title": "Runs on your computer",
-      "i.sub": "Everything lives in containers: all you need is Docker. Your books and vocabulary stay on your machine.",
-      "i.s1": "<b>Clone the repository</b> and start the services with Docker Compose.",
-      "i.s2": "<b>Optional:</b> install <a href=\"https://ollama.com\" rel=\"noopener\">Ollama</a> and the translation model to translate phrases with local AI.",
-      "i.c2": "# 2. local translation (optional)", "i.c3": "# 3. open http://localhost:5174",
-      "i.s3": "<b>Open</b> <code>localhost:5174</code>, import an EPUB, TXT or HTML file, and start reading.",
-      "p.title": "Made for readers",
-      "p1.t": "Your texts", "p1.p": "You read what you choose, not lessons from a catalogue.",
-      "p2.t": "Your data", "p2.p": "Everything is stored on your computer. Export your vocabulary whenever you like.",
-      "p3.t": "No subscription", "p3.p": "Free. Cloud AI is optional and you see what each request costs.",
-      "p4.t": "Open", "p4.p": "AGPL-3.0 code. Languages are added as packs.",
-      "end.title": "Your next book, in another language",
-      "end.sub": "glosa is in early development. Try it, open an issue or propose a language.",
-      "end.cta": "Go to GitHub", "foot.issues": "Feedback", "foot.credits": "Dictionary: Wiktionary (CC BY-SA) via Kaikki.",
+    const ES = {
+      "skip": "Saltar a la página",
+      "nav.read": "Página", "nav.index": "Índice", "nav.install": "Instalar",
+      "running": "un lector para aprender idiomas",
+      "bm.title": "Se instala con dos comandos", "bm.copy": "Copiar comandos", "bm.gh": "Ver el código en GitHub →",
+      "h1": "Aprende un idioma <span class=\"hl\" style=\"--i:2\">leyendo</span> lo que te gusta.",
+      "deck": "glosa es un lector gratuito y de código abierto. Trae <span class=\"hl\" style=\"--i:4\">tus propios libros</span><span class=\"mk\">1</span> y artículos, léelos con cada palabra marcada según cuánto la conoces, y quédate con lo que aprendes: <span class=\"hl\" style=\"--i:5\">gratis</span><span class=\"mk\">2</span> y en <span class=\"hl\" style=\"--i:6\">tu propio equipo</span><span class=\"mk\">3</span>.",
+      "g1": "¹ EPUB, TXT, HTML o <b>pega</b> cualquier texto",
+      "g2": "² sin cuenta ni suscripción. <b>AGPL</b>",
+      "g3": "³ nada sale de él salvo que <b>tú</b> elijas una IA en la nube",
+      "r2": "una página, leída",
+      "read.title": "Una página, como la lee glosa",
+      "read.lead": "Cada palabra lleva su color: nueva, en aprendizaje o conocida. Haz clic en una y verás el significado que tiene en esa oración. Las expresiones también aparecen marcadas, para que sepas dónde empiezan y dónde acaban.",
+      "lg.new": "nunca consultada", "lg.learn": "guardada, vuelve en el repaso", "lg.exp": "encontrada por ti", "lg.known": "sin color: conocida",
+      "try": "pruébalo: haz clic en una palabra del pasaje para cambiar cuánto la conoces",
+      "g.lie": "⁴ <b>lie</b> → estar situado. No «mentir»: lo decide esta oración",
+      "note.lang": "Los significados llegan en tu idioma; aquí, español. Texto: H. P. Lovecraft, «The Tomb» (1917).",
+      "r3": "tres promesas",
+      "why.title": "Todo es tuyo",
+      "p1": "<b>Tus propios textos.</b> Lee la novela de tu mesita, el periódico que sigues, el blog que te gusta. Sin un catálogo de lecciones elegidas por otros: importa un EPUB, un archivo de texto, una página web o pega lo que quieras.",
+      "p2": "<b>Tu propio equipo.</b> glosa funciona en tu máquina con Docker. Su diccionario, su modelo de traducción y sus voces pueden funcionar en local, así que tus libros y tu vocabulario se quedan contigo. Si quieres, puedes usar una IA en la nube, y ves cuánto cuesta cada consulta.",
+      "p3": "<b>Gratis, para siempre.</b> Sin cuenta, sin suscripción, sin versión premium. El código es abierto bajo la AGPL, y tu vocabulario se exporta a un CSV cuando quieras.",
+      "m1": "el modelo de traducción funciona en tu <b>CPU</b>",
+      "m2": "la tarjeta gráfica es <b>opcional</b>",
+      "r4": "índice", "index.title": "Índice",
+      "i.dict": "diccionario", "i.dict1": "Wiktionary en dos ediciones", "i.dict2": "significados ordenados según la oración en que aparecen",
+      "i.exp": "expresiones", "i.exp1": "unas 13.000, detectadas mientras lees", "i.exp2": "<i>véase también</i> phrasal verbs",
+      "i.gram": "gramática", "i.gram1": "estructuras marcadas en cada oración y explicadas",
+      "i.imp": "importar", "i.imp1": "EPUB, TXT, HTML o texto pegado",
+      "i.pv": "phrasal verbs", "i.pv1": "encontrados aunque estén conjugados o separados", "i.pv2": "«looked it up» es una unidad, no tres palabras",
+      "i.pron": "pronunciación", "i.pron1": "grabaciones reales para palabras; voces locales para frases",
+      "i.rev": "repaso", "i.rev1": "espaciado; las palabras vuelven cuando estás a punto de olvidarlas",
+      "i.tr": "traducción", "i.tr1": "un modelo local en tu CPU, LibreTranslate o una IA en la nube", "i.tr2": "cada traducción se guarda; el mismo texto nunca se traduce dos veces",
+      "i.voc": "vocabulario", "i.voc1": "cuatro niveles, de nueva a aprendida; exporta a CSV",
+      "errata.title": "Fe de erratas",
+      "errata.p": "No incluido en esta edición: estudiar idiomas que no sean inglés (los significados ya llegan en español, francés, portugués o italiano), una app para el móvil y una versión alojada. glosa está en desarrollo temprano.",
+      "r5": "apéndice",
+      "ins.title": "Apéndice: instalar glosa",
+      "ins.lead": "Solo necesitas Docker. Todo lo demás funciona en contenedores y no se instala nada en tu sistema.",
+      "s1": "Descarga el código y ponlo en marcha.",
+      "s2": "Opcional: para traducir en local, instala <a href=\"https://ollama.com\" rel=\"noopener\">Ollama</a> y su modelo de traducción.",
+      "s3": "Abre <a href=\"http://localhost:5174\">localhost:5174</a>, importa un libro y empieza a leer.",
+      "ins.readme": "Leer el README",
+      "blurb": "Un lector gratuito para aprender idiomas con tus propios libros, en tu propio equipo.",
+      "back.gh": "Descárgalo en GitHub",
+      "col.issues": "Ideas y errores", "col.dict": "Diccionario: Wiktionary (CC BY-SA), vía Kaikki", "col.type": "Compuesto en Literata, Schibsted Grotesk y Reenie Beanie",
+      "copied": "Comandos copiados", "copyFail": "No se pudo copiar; selecciona el texto",
     };
-    const ES = {};
-    document.querySelectorAll("[data-i18n]").forEach((el) => (ES[el.dataset.i18n] = el.textContent));
-    document.querySelectorAll("[data-i18n-html]").forEach((el) => (ES[el.dataset.i18nHtml] = el.innerHTML));
-    document.querySelectorAll("[data-i18n-aria]").forEach((el) => (ES[el.dataset.i18nAria] = el.getAttribute("aria-label")));
-    const button = document.getElementById("lang");
+    const EN = { "copied": "Commands copied", "copyFail": "Couldn't copy; select the text instead" };
+    document.querySelectorAll("[data-i18n]").forEach((el) => (EN[el.dataset.i18n] = el.textContent));
+    document.querySelectorAll("[data-i18n-html]").forEach((el) => (EN[el.dataset.i18nHtml] = el.innerHTML));
+    const langButton = document.getElementById("lang");
+    let lang = "en";
 
-    function apply(lang) {
-      const copy = lang === "en" ? EN : ES;
-      document.documentElement.lang = lang;
-      document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = copy[el.dataset.i18n] ?? ES[el.dataset.i18n]));
-      document.querySelectorAll("[data-i18n-html]").forEach((el) => (el.innerHTML = copy[el.dataset.i18nHtml] ?? ES[el.dataset.i18nHtml]));
-      document.querySelectorAll("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", copy[el.dataset.i18nAria] ?? ES[el.dataset.i18nAria]));
-      button.textContent = lang === "en" ? "ES" : "EN";
-      try { localStorage.setItem("glosa-lang", lang); } catch {}
+    function apply(next) {
+      lang = next;
+      const copy = next === "es" ? ES : EN;
+      document.documentElement.lang = next;
+      document.querySelectorAll("[data-i18n]").forEach((el) => { const v = copy[el.dataset.i18n]; if (v != null) el.textContent = v; });
+      document.querySelectorAll("[data-i18n-html]").forEach((el) => { const v = copy[el.dataset.i18nHtml]; if (v != null) el.innerHTML = v; });
+      langButton.textContent = next === "es" ? "EN" : "ES";
+      langButton.setAttribute("aria-label", next === "es" ? "English" : "Español");
+      document.querySelectorAll("[data-sweep]").forEach((s) => s.classList.add("in"));
+      try { localStorage.setItem("glosa-lang", next); } catch {}
     }
-
-    // ?lang=en|es wins (shareable links), then the visitor's last choice, then the browser.
+    // ?lang= wins (shareable links), then the visitor's last choice, then the browser.
     let initial = new URLSearchParams(location.search).get("lang");
     if (initial !== "es" && initial !== "en") {
-      initial = navigator.language.startsWith("es") ? "es" : "en";
+      initial = (navigator.language || "").toLowerCase().startsWith("es") ? "es" : "en";
       try { initial = localStorage.getItem("glosa-lang") || initial; } catch {}
     }
-    if (initial === "en") apply("en");
-    button.addEventListener("click", () => apply(document.documentElement.lang === "en" ? "es" : "en"));
+    if (initial === "es") apply("es");
+    langButton.addEventListener("click", () => apply(lang === "es" ? "en" : "es"));
+
+    // The highlighter passes once, in reading order, when a passage comes into view.
+    const sweeps = document.querySelectorAll("[data-sweep]");
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: 0.35 });
+      sweeps.forEach((s) => io.observe(s));
+    } else sweeps.forEach((s) => s.classList.add("in"));
+
+    // In the passage, clicking a word moves it along the reader's levels, as in the app.
+    const LEVELS = ["blue", "", "known"];
+    document.getElementById("passage").addEventListener("click", (e) => {
+      const w = e.target.closest(".w");
+      if (!w || w.classList.contains("pink")) return;
+      const now = w.classList.contains("blue") ? 0 : w.classList.contains("hl") ? 1 : 2;
+      const next = LEVELS[(now + 1) % 3];
+      w.classList.remove("blue");
+      w.classList.toggle("hl", next !== "known");
+      if (next === "blue") w.classList.add("blue");
+    });
+    document.querySelectorAll("#passage .w:not(.pink)").forEach((w) => { w.tabIndex = 0; w.setAttribute("role", "button"); w.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); w.click(); } }); });
+
+    // Copy the install commands.
+    const COMMANDS = "git clone https://github.com/CoKeFish/glosa\ncd glosa && docker compose up -d";
+    const toast = document.getElementById("toast");
+    function say(text) { toast.textContent = text; toast.classList.add("show"); clearTimeout(say.t); say.t = setTimeout(() => toast.classList.remove("show"), 2200); }
+    document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(COMMANDS); say((lang === "es" ? ES : EN).copied); }
+      catch { say((lang === "es" ? ES : EN).copyFail); }
+    }));
+
+    // The hero's margin notes start below the bookmark that hangs over them.
+    const bm = document.getElementById("bookmark");
+    const fit = () => document.querySelector(".hero").style.setProperty("--bm-h", bm.offsetHeight - 40 + "px");
+    fit(); addEventListener("resize", fit);
   </script>
 </body>
 </html>

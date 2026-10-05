@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "tight-leading",
+        "value": "*",
+        "files": [
+          "landing/index.html"
+        ],
+        "createdAt": "2026-10-05T16:23:06.913Z",
+        "reason": "finish reviewer shipped with it: display headings (h1 1.02, chapters 1.08) are intentional; body is 1.62"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "landing/index.html"
+        ],
+        "createdAt": "2026-10-05T16:23:07.359Z",
+        "reason": "finish reviewer shipped with it: the flagged boundary is the dashed rule between page leaves, which have 28-56px top padding"
+      }
+    ]
+  }
+}

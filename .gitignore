@@ -19,3 +19,9 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+# Impeccable working files (the surface briefs in .impeccable/surfaces are kept)
+.impeccable/review/
+.impeccable/questions/
+.impeccable/hook.cache.json
+.impeccable/direction-round.json

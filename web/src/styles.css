@@ -111,7 +111,8 @@ label.check input { width: 18px; height: 18px; accent-color: var(--green); }
   background: var(--bg); border-bottom: 1px solid var(--line);
 }
 .brand { font-weight: 700; font-size: 1.5rem; color: var(--fg); letter-spacing: -0.02em; text-decoration: none !important; display: inline-flex; align-items: center; gap: 0.5rem; }
-.brand img { width: 30px; height: 30px; }
+.brand .wordmark { display: flex; }
+.brand .wordmark svg { height: 30px; width: auto; display: block; }
 .brand b { color: var(--green); }
 .topbar nav { display: flex; gap: 1.6rem; flex: 1; }
 .topbar nav a { color: var(--fg-2); font-weight: 500; padding: 0.4em 0; border-bottom: 2px solid transparent; text-decoration: none; }
