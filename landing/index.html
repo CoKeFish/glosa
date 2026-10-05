@@ -122,6 +122,7 @@
     .btn-paper:hover { background: #fff; }
     .btn svg { width: 1.05em; height: 1.05em; flex: none; }
     .bookmark .gh { display: block; margin-top: 0.8rem; color: #fff; font-size: 0.9rem; }
+    .bm-note { margin: 0.8rem 0 0; font-family: var(--serif); font-size: 0.92rem; line-height: 1.45; color: #e4e7ff; }
     .hero .glosses { margin-top: calc(var(--bm-h, 300px) + 1.4rem); }
 
     /* Page flags stuck to the fore-edge: the navigation. */
@@ -161,7 +162,7 @@
     .errata p { margin: 0; color: var(--ink-2); }
 
     /* Appendix */
-    .steps { counter-reset: s; list-style: none; padding: 0; margin: 0; max-width: 40rem; display: flex; flex-direction: column; gap: 1.4rem; }
+    .steps { counter-reset: s; list-style: none; padding: 0; margin: 0; max-width: 52rem; display: flex; flex-direction: column; gap: 1.4rem; }
     .steps li { counter-increment: s; display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); gap: 0.4rem; }
     .steps li::before { content: counter(s); font-family: var(--hand); font-size: 2.1rem; line-height: 1; color: var(--pencil); }
     .steps p { margin: 0 0 0.5rem; }
@@ -201,7 +202,7 @@
       .flag { width: auto; transform: none; border-radius: 2px 2px 0 0; padding: 0.4rem 0.65rem 0.5rem; box-shadow: none; }
       .flag:hover, .flag:focus-visible { transform: translateY(-2px); }
       .page { margin-top: 0; }
-      pre.code { font-size: 0.8rem; }
+      pre.code { font-size: 0.8rem; white-space: pre-wrap; overflow-wrap: anywhere; }
     }
   </style>
 </head>
@@ -224,15 +225,13 @@
       </header>
 
       <aside class="bookmark" id="bookmark" aria-labelledby="bm-title">
-        <h2 id="bm-title" data-i18n="bm.title">Install in two commands</h2>
-        <pre class="cmds"><span class="p">$ </span>git clone \
-https://github.com/CoKeFish/glosa
-<span class="p">$ </span>cd glosa &amp;&amp; docker compose up -d</pre>
-        <button class="btn btn-paper" type="button" data-copy>
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="6.5" y="6.5" width="10" height="11" rx="1.5"/><path d="M13.5 6.5V4a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 4v9A1.5 1.5 0 0 0 5 14.5h1.5"/></svg>
-          <span data-i18n="bm.copy">Copy commands</span>
-        </button>
-        <a class="gh" href="https://github.com/CoKeFish/glosa" rel="noopener" data-i18n="bm.gh">Read the code on GitHub →</a>
+        <h2 id="bm-title" data-i18n="bm.title">Get glosa</h2>
+        <a class="btn btn-paper" href="https://github.com/CoKeFish/glosa/releases/latest/download/glosa-setup.exe">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10M5.5 8.5 10 13l4.5-4.5M4 16.5h12"/></svg>
+          <span data-i18n="bm.dl">Download for Windows</span>
+        </a>
+        <p class="bm-note" data-i18n="bm.note">Free. Installs Docker Desktop if you don't have it, then asks for a Light or Recommended setup.</p>
+        <a class="gh" href="#install" data-i18n="bm.other">Linux or macOS: two commands →</a>
       </aside>
 
       <div class="text-grid">
@@ -326,20 +325,20 @@ https://github.com/CoKeFish/glosa
     <section class="leaf" id="install" aria-labelledby="install-title">
       <header class="running"><span data-i18n="running">a reader for learning languages</span><span class="rule"></span><span data-i18n="r5">appendix</span></header>
       <h2 class="chapter" id="install-title" data-i18n="ins.title">Appendix: installing glosa</h2>
-      <p class="lead" data-i18n="ins.lead">All you need is Docker. Everything else runs in containers, and nothing is installed on your system.</p>
+      <p class="lead" data-i18n="ins.lead">glosa runs in Docker, so nothing else is installed on your system. Voices, translators and the offline dictionary are extras you add or remove later from the app.</p>
       <ol class="steps">
-        <li><div><p data-i18n="s1">Get the code and start it.</p>
-          <pre class="code"><span class="p">$ </span>git clone \
-https://github.com/CoKeFish/glosa
-<span class="p">$ </span>cd glosa &amp;&amp; docker compose up -d</pre></div></li>
-        <li><div><p data-i18n-html="s2">Optional: for local translation, install <a href="https://ollama.com" rel="noopener">Ollama</a> and its translation model.</p>
-          <pre class="code"><span class="p">$ </span>ollama pull translategemma:4b</pre></div></li>
-        <li><div><p data-i18n-html="s3">Open <a href="http://localhost:5174">localhost:5174</a>, import a book, and start reading.</p></div></li>
+        <li><div><p data-i18n-html="s1"><b>On Windows,</b> run the installer. It sets up Docker Desktop if needed and asks for a Light (about 2 GB of extras) or Recommended (about 10 GB) setup.</p>
+          <p><a class="btn btn-cover" href="https://github.com/CoKeFish/glosa/releases/latest/download/glosa-setup.exe"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10M5.5 8.5 10 13l4.5-4.5M4 16.5h12"/></svg> <span data-i18n="bm.dl">Download for Windows</span></a></p></div></li>
+        <li><div><p data-i18n-html="s2"><b>On Linux or macOS,</b> with Docker installed:</p>
+          <pre class="code"><span class="p">$ </span>curl -fsSLO \
+https://github.com/CoKeFish/glosa/releases/latest/download/compose.yaml
+<span class="p">$ </span>docker compose -p glosa up -d</pre></div></li>
+        <li><div><p data-i18n-html="s3">Open <a href="http://localhost:7878">localhost:7878</a>, add extras from the <b>Extras</b> page, import a book, and start reading.</p></div></li>
       </ol>
       <div class="copy-row">
-        <button class="btn btn-cover" type="button" data-copy>
+        <button class="btn btn-line" type="button" data-copy>
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="6.5" y="6.5" width="10" height="11" rx="1.5"/><path d="M13.5 6.5V4a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 4v9A1.5 1.5 0 0 0 5 14.5h1.5"/></svg>
-          <span data-i18n="bm.copy">Copy commands</span>
+          <span data-i18n="bm.copy">Copy the commands</span>
         </button>
         <a class="btn btn-line" href="https://github.com/CoKeFish/glosa#readme" rel="noopener" data-i18n="ins.readme">Read the README</a>
       </div>
@@ -355,7 +354,7 @@ https://github.com/CoKeFish/glosa
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.25.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.04.74.8 1.19 1.83 1.19 3.08 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
         <span data-i18n="back.gh">Get it on GitHub</span>
       </a>
-      <button class="btn btn-ghost" type="button" data-copy><span data-i18n="bm.copy">Copy commands</span></button>
+      <a class="btn btn-ghost" href="https://github.com/CoKeFish/glosa/releases/latest/download/glosa-setup.exe"><span data-i18n="bm.dl">Download for Windows</span></a>
     </div>
     <div class="colophon">
       <span>glosa · AGPL-3.0</span>
@@ -377,7 +376,7 @@ https://github.com/CoKeFish/glosa
       "skip": "Saltar a la página",
       "nav.read": "Página", "nav.index": "Índice", "nav.install": "Instalar",
       "running": "un lector para aprender idiomas",
-      "bm.title": "Se instala con dos comandos", "bm.copy": "Copiar comandos", "bm.gh": "Ver el código en GitHub →",
+      "bm.title": "Consigue glosa", "bm.copy": "Copiar los comandos", "bm.dl": "Descargar para Windows", "bm.note": "Gratis. Instala Docker Desktop si no lo tienes y luego te pregunta si quieres la instalación Ligera o la Recomendada.", "bm.other": "Linux o macOS: dos comandos →",
       "h1": "Aprende un idioma <span class=\"hl\" style=\"--i:2\">leyendo</span> lo que te gusta.",
       "deck": "glosa es un lector gratuito y de código abierto. Trae <span class=\"hl\" style=\"--i:4\">tus propios libros</span><span class=\"mk\">1</span> y artículos, léelos con cada palabra marcada según cuánto la conoces, y quédate con lo que aprendes: <span class=\"hl\" style=\"--i:5\">gratis</span><span class=\"mk\">2</span> y en <span class=\"hl\" style=\"--i:6\">tu propio equipo</span><span class=\"mk\">3</span>.",
       "g1": "¹ EPUB, TXT, HTML o <b>pega</b> cualquier texto",
@@ -411,10 +410,10 @@ https://github.com/CoKeFish/glosa
       "errata.p": "No incluido en esta edición: estudiar idiomas que no sean inglés (los significados ya llegan en español, francés, portugués o italiano), una app para el móvil y una versión alojada. glosa está en desarrollo temprano.",
       "r5": "apéndice",
       "ins.title": "Apéndice: instalar glosa",
-      "ins.lead": "Solo necesitas Docker. Todo lo demás funciona en contenedores y no se instala nada en tu sistema.",
-      "s1": "Descarga el código y ponlo en marcha.",
-      "s2": "Opcional: para traducir en local, instala <a href=\"https://ollama.com\" rel=\"noopener\">Ollama</a> y su modelo de traducción.",
-      "s3": "Abre <a href=\"http://localhost:5174\">localhost:5174</a>, importa un libro y empieza a leer.",
+      "ins.lead": "glosa funciona en Docker, así que no se instala nada más en tu sistema. Las voces, los traductores y el diccionario sin conexión son extras que añades o quitas después desde la app.",
+      "s1": "<b>En Windows,</b> ejecuta el instalador. Prepara Docker Desktop si hace falta y te pregunta por la instalación Ligera (unos 2 GB de extras) o la Recomendada (unos 10 GB).",
+      "s2": "<b>En Linux o macOS,</b> con Docker instalado:",
+      "s3": "Abre <a href=\"http://localhost:7878\">localhost:7878</a>, añade extras desde la página <b>Extras</b>, importa un libro y empieza a leer.",
       "ins.readme": "Leer el README",
       "blurb": "Un lector gratuito para aprender idiomas con tus propios libros, en tu propio equipo.",
       "back.gh": "Descárgalo en GitHub",
