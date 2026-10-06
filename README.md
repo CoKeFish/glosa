@@ -32,6 +32,15 @@ The core (database, API, web) is small. Everything heavy is an extra, installed 
 
 The app reaches Docker through its socket to do this, and only touches containers it labelled `glosa.extra`. API keys for cloud AI can be entered on the same page; they are stored encrypted on that computer only.
 
+### Self-hosted or hosted
+
+One codebase runs in two modes, set with `GLOSA_MODE`:
+
+- `selfhost` (default): one reader on their own computer, no sign-in, extras installed through Docker.
+- `hosted`: a web service. Accounts by invitation, sign-in required, every reader's books, vocabulary, settings and keys kept apart, Docker extras disabled. Create the first admin on the server with `docker compose exec api python -m app.cli create-admin you@example.com`, then invite people from **Ajustes → Invitaciones**. Set `GLOSA_PUBLIC_URL` to the address invitation links should use.
+
+The database schema is versioned with Alembic (`api/migrations`) and upgraded when the API starts; a database from 0.1.0 is recognised and upgraded with its data.
+
 ## Running it for development
 
 Everything runs in containers; you only need Docker.

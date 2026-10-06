@@ -5,9 +5,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import importers, settings_store
+from app.auth import current_user
 from app.db import get_session
-from app.models import KNOWN, Book, Section, Term
-from app.routers.common import require_language, status_map, term_out
+from app.models import KNOWN, Book, Section, Term, User
+from app.routers.common import own_book, own_section, require_language, status_map, term_out
 
 router = APIRouter(prefix="/api")
 
@@ -19,14 +20,15 @@ def _new_ratio(tokens: list[dict], statuses: dict[str, int]) -> tuple[int, int]:
 
 
 @router.get("/books")
-def list_books(session: Session = Depends(get_session)):
+def list_books(user: User = Depends(current_user), session: Session = Depends(get_session)):
     counts = {
         book_id: (n, words)
         for book_id, n, words in session.execute(
-            select(Section.book_id, func.count(), func.sum(Section.word_count)).group_by(Section.book_id)
+            select(Section.book_id, func.count(), func.sum(Section.word_count))
+            .join(Book).where(Book.user_id == user.id).group_by(Section.book_id)
         )
     }
-    books = session.scalars(select(Book).order_by(Book.created_at.desc())).all()
+    books = session.scalars(select(Book).where(Book.user_id == user.id).order_by(Book.created_at.desc())).all()
     return [
         {"id": b.id, "title": b.title, "language": b.language, "sections": counts.get(b.id, (0, 0))[0],
          "words": int(counts.get(b.id, (0, 0))[1] or 0), "current_position": b.current_position}
@@ -40,6 +42,7 @@ async def import_book(
     title: str = Form(""),
     text: str = Form(""),
     file: UploadFile | None = None,
+    user: User = Depends(current_user),
     session: Session = Depends(get_session),
 ):
     pack = require_language(language)
@@ -53,7 +56,7 @@ async def import_book(
 
     # spaCy is CPU-bound; keep it off the event loop.
     analyses = await run_in_threadpool(lambda: [pack.analyze(s.text) for s in raw])
-    book = Book(title=title.strip() or detected_title or "Sin título", language=language)
+    book = Book(user_id=user.id, title=title.strip() or detected_title or "Sin título", language=language)
     for position, (section, analysis) in enumerate(zip(raw, analyses)):
         book.sections.append(
             Section(position=position, title=section.title, text=section.text, tokens=analysis.tokens,
@@ -65,11 +68,9 @@ async def import_book(
 
 
 @router.get("/books/{book_id}")
-def get_book(book_id: int, session: Session = Depends(get_session)):
-    book = session.get(Book, book_id)
-    if book is None:
-        raise HTTPException(404, "Libro no encontrado")
-    statuses = status_map(session, book.language)
+def get_book(book_id: int, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    book = own_book(session, user.id, book_id)
+    statuses = status_map(session, user.id, book.language)
     sections = []
     for s in book.sections:
         new, unique = _new_ratio(s.tokens, statuses)
@@ -80,11 +81,9 @@ def get_book(book_id: int, session: Session = Depends(get_session)):
 
 
 @router.post("/books/{book_id}/reanalyze")
-async def reanalyze_book(book_id: int, session: Session = Depends(get_session)):
+async def reanalyze_book(book_id: int, user: User = Depends(current_user), session: Session = Depends(get_session)):
     """Run the language pack again over a book, after its rules have improved. Vocabulary is untouched."""
-    book = session.get(Book, book_id)
-    if book is None:
-        raise HTTPException(404, "Libro no encontrado")
+    book = own_book(session, user.id, book_id)
     pack = require_language(book.language)
     texts = [s.text for s in book.sections]
     analyses = await run_in_threadpool(lambda: [pack.analyze(t) for t in texts])
@@ -96,10 +95,8 @@ async def reanalyze_book(book_id: int, session: Session = Depends(get_session)):
 
 
 @router.delete("/books/{book_id}")
-def delete_book(book_id: int, session: Session = Depends(get_session)):
-    book = session.get(Book, book_id)
-    if book is None:
-        raise HTTPException(404, "Libro no encontrado")
+def delete_book(book_id: int, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    book = own_book(session, user.id, book_id)
     session.delete(book)
     session.commit()
     return {"ok": True}
@@ -142,15 +139,14 @@ def _structure_lemma(tokens: list[dict], indices: list[int], language: str) -> s
 
 
 @router.get("/sections/{section_id}")
-def get_section(section_id: int, session: Session = Depends(get_session)):
-    section = session.get(Section, section_id)
-    if section is None:
-        raise HTTPException(404, "Sección no encontrada")
+def get_section(section_id: int, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    section = own_section(session, user.id, section_id)
     book = section.book
     pack = require_language(book.language)
 
     saved = session.execute(
-        select(Term.key, Term.kind).where(Term.language == book.language, Term.kind.in_(("phrase", "expression")))
+        select(Term.key, Term.kind).where(Term.user_id == user.id, Term.language == book.language,
+                                         Term.kind.in_(("phrase", "expression")))
     ).all()
     detected = {(u["k"], tuple(u["i"])) for u in section.units}
     extra = [u for u in _phrase_units(section.tokens, [tuple(r) for r in saved])
@@ -158,10 +154,12 @@ def get_section(section_id: int, session: Session = Depends(get_session)):
     units = section.units + extra
 
     keys = {t["k"] for t in section.tokens if t["w"]} | {u["k"] for u in units}
-    terms = session.scalars(select(Term).where(Term.language == book.language, Term.key.in_(keys))).all()
+    terms = session.scalars(
+        select(Term).where(Term.user_id == user.id, Term.language == book.language, Term.key.in_(keys))
+    ).all()
 
     neighbours = {s.position: s.id for s in book.sections}
-    grammar_types = pack.grammar_types(settings_store.native_language(session))
+    grammar_types = pack.grammar_types(settings_store.native_language(session, user.id))
     return {
         "id": section.id,
         "title": section.title,
@@ -185,18 +183,17 @@ class Position(BaseModel):
 
 
 @router.post("/books/{book_id}/position")
-def set_position(book_id: int, body: Position, session: Session = Depends(get_session)):
-    book = session.get(Book, book_id)
-    if book is None:
-        raise HTTPException(404, "Libro no encontrado")
+def set_position(book_id: int, body: Position, user: User = Depends(current_user),
+                 session: Session = Depends(get_session)):
+    book = own_book(session, user.id, book_id)
     book.current_position = body.position
     session.commit()
     return {"ok": True}
 
 
 @router.get("/stats")
-def stats(language: str, session: Session = Depends(get_session)):
-    statuses = status_map(session, language)
+def stats(language: str, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    statuses = status_map(session, user.id, language)
     return {
         # Like LingQ: known words count terms marked known plus those at status 4.
         "known_words": sum(1 for s in statuses.values() if s in (4, KNOWN)),

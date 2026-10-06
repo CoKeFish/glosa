@@ -35,6 +35,9 @@ services:
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
       # Encrypts API keys entered in the app. Optional: without it a key is generated in api-data.
       GLOSA_SECRET_KEY: ${GLOSA_SECRET_KEY:-}
+      # selfhost (default) or hosted: GLOSA_MODE=hosted docker compose up -d api
+      GLOSA_MODE: ${GLOSA_MODE:-selfhost}
+      GLOSA_PUBLIC_URL: ${GLOSA_PUBLIC_URL:-http://localhost:5174}
       # In development the Supertonic image is built locally (tts/supertonic).
       GLOSA_SUPERTONIC_IMAGE: glosa-tts-supertonic:latest
     volumes:

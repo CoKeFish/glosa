@@ -1,7 +1,7 @@
 """API keys entered in the app, stored encrypted.
 
 Keys from the environment (Doppler) always win; a key saved in the app is the fallback for
-people who run glosa without a secrets manager. Stored keys are encrypted with Fernet. The
+people who run glosa without a secrets manager. Saved keys belong to one account. Stored keys are encrypted with Fernet. The
 master key comes from GLOSA_SECRET_KEY, or is generated once and kept in a file on its own
 volume, so a database dump alone does not reveal the API keys.
 """
@@ -30,21 +30,21 @@ def _fernet() -> Fernet:
     return Fernet(KEY_FILE.read_bytes().strip())
 
 
-def save_key(session: Session, provider: str, key: str) -> None:
+def save_key(session: Session, user_id: int, provider: str, key: str) -> None:
     token = _fernet().encrypt(key.strip().encode()).decode()
-    session.merge(ApiKey(provider=provider, encrypted=token, hint=key.strip()[-4:]))
+    session.merge(ApiKey(user_id=user_id, provider=provider, encrypted=token, hint=key.strip()[-4:]))
     session.commit()
 
 
-def delete_key(session: Session, provider: str) -> None:
-    row = session.get(ApiKey, provider)
+def delete_key(session: Session, user_id: int, provider: str) -> None:
+    row = session.get(ApiKey, (user_id, provider))
     if row is not None:
         session.delete(row)
         session.commit()
 
 
-def stored_key(session: Session, provider: str) -> str | None:
-    row = session.get(ApiKey, provider)
+def stored_key(session: Session, user_id: int, provider: str) -> str | None:
+    row = session.get(ApiKey, (user_id, provider))
     if row is None:
         return None
     try:
@@ -53,6 +53,6 @@ def stored_key(session: Session, provider: str) -> str | None:
         return None  # master key changed: the stored key is unreadable and must be entered again
 
 
-def stored_hint(session: Session, provider: str) -> str | None:
-    row = session.get(ApiKey, provider)
+def stored_hint(session: Session, user_id: int, provider: str) -> str | None:
+    row = session.get(ApiKey, (user_id, provider))
     return row.hint if row else None

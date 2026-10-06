@@ -6,7 +6,8 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app import extras, keystore, languages, settings_store, translation_cache
+from app import config, extras, keystore, languages, settings_store, translation_cache
+from app.auth import current_user
 from app.ai import service as ai_service
 from app.ai.base import AIError, AINotConfigured, ModelConfig
 from app.ai.registry import PROVIDERS, build_text_model, describe_providers
@@ -15,12 +16,12 @@ from app.db import get_session
 from app.dictionary import service as dictionary_service
 from app.ai import pricing
 from app import tts
-from app.models import AIUsage, AudioCache, SpeechCache
+from app.models import AIUsage, AudioCache, SpeechCache, User
 from app.routers.common import require_language
 from app.translation import (DEFAULT_LLM, AITranslator, LLMTranslator, LocalTranslator, TranslationError,
                              Untranslated, llm_models)
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api", dependencies=[Depends(current_user)])
 
 
 @router.get("/languages")
@@ -30,12 +31,12 @@ def list_languages():
 
 @router.get("/dictionary")
 async def lookup(language: str, term: str, lemma: str | None = None, context: str = "", surface: str | None = None,
-                 kind: str = "word", session: Session = Depends(get_session)):
+                 kind: str = "word", user: User = Depends(current_user), session: Session = Depends(get_session)):
     """`context` is the sentence the word is in; translations are ranked against it."""
     require_language(language)
     terms = [term] + ([lemma] if lemma else [])
     return await dictionary_service.lookup(
-        session, language, terms, settings_store.native_language(session),
+        session, language, terms, settings_store.native_language(session, user.id),
         context=context, surface=surface, kind=kind,
     )
 
@@ -47,41 +48,43 @@ class TranslateTextIn(BaseModel):
     context: str = ""  # the sentence the text comes from, for translators that read it
 
 
-async def _translator(session: Session, provider: str):
+async def _translator(session: Session, user_id: int, provider: str):
     if provider == "llm":
-        config = settings_store.get(session, "translation")
-        return LLMTranslator(config.get("llm_model") or DEFAULT_LLM, bool(config.get("use_gpu")),
+        settings = settings_store.get(session, user_id, "translation")
+        return LLMTranslator(settings.get("llm_model") or DEFAULT_LLM, bool(settings.get("use_gpu")),
                              url=await run_in_threadpool(extras.ollama_url))
     if provider == "ai":
-        return AITranslator(_model(session))
+        return AITranslator(_model(session, user_id))
     if provider == "local":
         return LocalTranslator()
     raise HTTPException(400, f"Traductor desconocido: {provider}")
 
 
-async def _translate(session: Session, translator, body: TranslateTextIn, native: str) -> str:
+async def _translate(session: Session, user_id: int, translator, body: TranslateTextIn, native: str) -> str:
     model = translator.model if translator.id == "ai" else None
     # A repeated text comes from the cache: no new request, and for the AI, no new cost.
     return await translation_cache.cached(
         session, translation_cache.translator_id(translator), body.language, native,
         translation_cache.cache_text(body.text, body.context, translator),
-        lambda: _run(translator.translate(body.text, body.language, native, body.context), session, model, "translate"))
+        lambda: _run(translator.translate(body.text, body.language, native, body.context), session, model, "translate",
+                     user_id))
 
 
 @router.post("/translate")
-async def translate_text(body: TranslateTextIn, session: Session = Depends(get_session)):
+async def translate_text(body: TranslateTextIn, user: User = Depends(current_user), session: Session = Depends(get_session)):
     """Translate a phrase or sentence with the configured translator, or the one asked for."""
-    native = settings_store.native_language(session)
-    translator = await _translator(session, body.provider or settings_store.get(session, "translation")["provider"])
+    native = settings_store.native_language(session, user.id)
+    provider = body.provider or settings_store.get(session, user.id, "translation")["provider"]
+    translator = await _translator(session, user.id, provider)
     try:
         try:
-            text = await _translate(session, translator, body, native)
+            text = await _translate(session, user.id, translator, body, native)
         except TranslationError as exc:
             if translator.id != "llm" or isinstance(exc, Untranslated):
                 raise
             # Ollama is not running or lacks the model: LibreTranslate still gives an answer.
             translator = LocalTranslator()
-            text = await _translate(session, translator, body, native)
+            text = await _translate(session, user.id, translator, body, native)
     except Untranslated as exc:
         # Not a failure of the service: tell the reader and let them ask another translator.
         return {"translation": None, "provider": translator.id, "message": str(exc)}
@@ -173,30 +176,30 @@ async def speech(engine: str, text: str, language: str = "en", voice: str = "", 
 
 
 @router.get("/settings")
-def get_settings(session: Session = Depends(get_session)):
-    return settings_store.all_settings(session)
+def get_settings(user: User = Depends(current_user), session: Session = Depends(get_session)):
+    return settings_store.all_settings(session, user.id)
 
 
 @router.put("/settings")
-def put_settings(body: dict[str, dict], session: Session = Depends(get_session)):
+def put_settings(body: dict[str, dict], user: User = Depends(current_user), session: Session = Depends(get_session)):
     for key, value in body.items():
         if key not in settings_store.DEFAULTS:
             raise HTTPException(400, f"Ajuste desconocido: {key}")
         if key == "ai.text" and value.get("provider") not in PROVIDERS:
             raise HTTPException(400, f"Proveedor desconocido: {value.get('provider')}")
-        settings_store.put(session, key, value)
-    return settings_store.all_settings(session)
+        settings_store.put(session, user.id, key, value)
+    return settings_store.all_settings(session, user.id)
 
 
 @router.get("/ai/providers")
-def providers(session: Session = Depends(get_session)):
-    return describe_providers(lambda p: keystore.stored_hint(session, p))
+def providers(user: User = Depends(current_user), session: Session = Depends(get_session)):
+    return describe_providers(lambda p: keystore.stored_hint(session, user.id, p))
 
 
 @router.get("/ai/models")
-async def models(provider: str, base_url: str | None = None, session: Session = Depends(get_session)):
+async def models(provider: str, base_url: str | None = None, user: User = Depends(current_user), session: Session = Depends(get_session)):
     """Models the configured key (or local server) offers, for the model dropdown."""
-    items = await _run(list_provider_models(provider, base_url, lambda p: keystore.stored_key(session, p)))
+    items = await _run(list_provider_models(provider, base_url, lambda p: keystore.stored_key(session, user.id, p)))
     return {"models": items, "recommended": PROVIDERS[provider].default_model}
 
 
@@ -204,19 +207,19 @@ FEATURES = ("translate", "explain", "expressions", "grammar")
 
 
 @router.get("/ai/usage")
-def usage(days: int = 30, session: Session = Depends(get_session)):
+def usage(days: int = 30, user: User = Depends(current_user), session: Session = Depends(get_session)):
     """What the AI cost over the last `days`, and what each feature costs per call with the
     model currently selected (from recorded usage, or typical sizes before there is any)."""
     from datetime import datetime, timedelta, timezone
 
     from sqlalchemy import func, select
 
-    custom = settings_store.get(session, "ai.prices")
+    custom = settings_store.get(session, user.id, "ai.prices")
     since = datetime.now(timezone.utc) - timedelta(days=days)
     rows = session.execute(
         select(AIUsage.provider, AIUsage.model, AIUsage.feature, func.count(),
                func.sum(AIUsage.input_tokens), func.sum(AIUsage.output_tokens))
-        .where(AIUsage.at >= since)
+        .where(AIUsage.user_id == user.id, AIUsage.at >= since)
         .group_by(AIUsage.provider, AIUsage.model, AIUsage.feature)
     ).all()
 
@@ -234,8 +237,8 @@ def usage(days: int = 30, session: Session = Depends(get_session)):
         acc[1] += int(tin or 0)
         acc[2] += int(tout or 0)
 
-    config = settings_store.text_model_config(session)
-    current_price = pricing.price(config.provider, config.model, custom)
+    model_config = settings_store.text_model_config(session, user.id)
+    current_price = pricing.price(model_config.provider, model_config.model, custom)
     features = []
     for feature in FEATURES:
         n, tin, tout = per_feature_tokens.get(feature, [0, 0, 0])
@@ -254,9 +257,9 @@ def usage(days: int = 30, session: Session = Depends(get_session)):
         "calls": calls,
         "total_cost": round(total_cost, 4),
         "unpriced_calls": unpriced,
-        "model": {"provider": config.provider, "model": config.model,
+        "model": {"provider": model_config.provider, "model": model_config.model,
                   "price": {"input": current_price[0], "output": current_price[1]} if current_price else None,
-                  "custom": config.model in custom},
+                  "custom": model_config.model in custom},
         "features": features,
     }
 
@@ -266,33 +269,34 @@ class KeyIn(BaseModel):
 
 
 @router.put("/ai/keys/{provider}")
-def save_key(provider: str, body: KeyIn, session: Session = Depends(get_session)):
+def save_key(provider: str, body: KeyIn, user: User = Depends(current_user), session: Session = Depends(get_session)):
     """Save an API key entered in the app. It is stored encrypted and never sent back."""
     if provider not in PROVIDERS:
         raise HTTPException(400, f"Proveedor desconocido: {provider}")
     if len(body.key.strip()) < 8:
         raise HTTPException(400, "La clave parece demasiado corta")
-    keystore.save_key(session, provider, body.key)
+    keystore.save_key(session, user.id, provider, body.key)
     return {"ok": True}
 
 
 @router.delete("/ai/keys/{provider}")
-def delete_key(provider: str, session: Session = Depends(get_session)):
-    keystore.delete_key(session, provider)
+def delete_key(provider: str, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    keystore.delete_key(session, user.id, provider)
     return {"ok": True}
 
 
-def _model(session: Session, override: ModelConfig | None = None):
-    config = override or settings_store.text_model_config(session)
+def _model(session: Session, user_id: int, override: ModelConfig | None = None):
+    model_config = override or settings_store.text_model_config(session, user_id)
     try:
-        model = build_text_model(config, lambda p: keystore.stored_key(session, p))
+        model = build_text_model(model_config, lambda p: keystore.stored_key(session, user_id, p))
     except AINotConfigured as exc:
         raise HTTPException(409, str(exc))
-    model.provider_id = config.provider  # for the usage log
+    model.provider_id = model_config.provider  # for the usage log
     return model
 
 
-async def _run(coro, session: Session | None = None, model=None, feature: str | None = None):
+async def _run(coro, session: Session | None = None, model=None, feature: str | None = None,
+               user_id: int | None = None):
     """Await an AI call, map its errors to HTTP, and log its token usage when given the model."""
     try:
         result = await coro
@@ -302,7 +306,8 @@ async def _run(coro, session: Session | None = None, model=None, feature: str | 
         raise HTTPException(502, str(exc))
     usage = getattr(model, "last_usage", None) if model is not None else None
     if session is not None and usage is not None and feature:
-        session.add(AIUsage(provider=getattr(model, "provider_id", ""), model=model.model, feature=feature,
+        session.add(AIUsage(user_id=user_id, provider=getattr(model, "provider_id", ""), model=model.model,
+                            feature=feature,
                             input_tokens=usage.input_tokens, output_tokens=usage.output_tokens))
         session.commit()
     return result
@@ -316,12 +321,12 @@ class ExplainIn(BaseModel):
 
 
 @router.post("/ai/explain")
-async def explain(body: ExplainIn, session: Session = Depends(get_session)):
-    model = _model(session)
+async def explain(body: ExplainIn, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    model = _model(session, user.id)
     return await _run(ai_service.explain_term(
-        model, language=body.language, native=settings_store.native_language(session),
+        model, language=body.language, native=settings_store.native_language(session, user.id),
         term=body.term, kind=body.kind, context=body.context,
-    ), session, model, "explain")
+    ), session, model, "explain", user.id)
 
 
 class GrammarIn(BaseModel):
@@ -331,12 +336,12 @@ class GrammarIn(BaseModel):
 
 
 @router.post("/ai/grammar")
-async def grammar(body: GrammarIn, session: Session = Depends(get_session)):
-    model = _model(session)
+async def grammar(body: GrammarIn, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    model = _model(session, user.id)
     text = await _run(ai_service.explain_grammar(
-        model, language=body.language, native=settings_store.native_language(session),
+        model, language=body.language, native=settings_store.native_language(session, user.id),
         sentence=body.sentence, structures=body.structures,
-    ), session, model, "grammar")
+    ), session, model, "grammar", user.id)
     return {"explanation": text}
 
 
@@ -347,13 +352,13 @@ class ExpressionsIn(BaseModel):
 
 
 @router.post("/ai/expressions")
-async def find_expressions(body: ExpressionsIn, session: Session = Depends(get_session)):
+async def find_expressions(body: ExpressionsIn, user: User = Depends(current_user), session: Session = Depends(get_session)):
     """Expressions the automatic detection missed, found by the AI in one sentence."""
-    model = _model(session)
+    model = _model(session, user.id)
     items = await _run(ai_service.find_expressions(
-        model, language=body.language, native=settings_store.native_language(session),
+        model, language=body.language, native=settings_store.native_language(session, user.id),
         sentence=body.sentence, known=body.known,
-    ), session, model, "expressions")
+    ), session, model, "expressions", user.id)
     return {"expressions": items}
 
 
@@ -364,22 +369,27 @@ class TestIn(BaseModel):
 
 
 @router.post("/ai/test")
-async def test_model(body: TestIn, session: Session = Depends(get_session)):
+async def test_model(body: TestIn, user: User = Depends(current_user), session: Session = Depends(get_session)):
     """Try a configuration before saving it."""
-    model = _model(session, ModelConfig(body.provider, body.model, body.base_url))
+    model = _model(session, user.id, ModelConfig(body.provider, body.model, body.base_url))
     text = await _run(ai_service.translate(model, language="en", native="es", text="Good morning"),
-                      session, model, "test")
+                      session, model, "test", user.id)
     return {"ok": True, "sample": text}
 
 
 # --- Extras: optional components installed from the app -------------------------------
 
-@router.get("/extras")
+def _selfhost_only() -> None:
+    if config.hosted():
+        raise HTTPException(403, "Los extras solo se instalan en una instalación propia")
+
+
+@router.get("/extras", dependencies=[Depends(_selfhost_only)])
 async def list_extras():
     return await run_in_threadpool(extras.status)
 
 
-@router.post("/extras/{extra_id}/{action}")
+@router.post("/extras/{extra_id}/{action}", dependencies=[Depends(_selfhost_only)])
 async def change_extra(extra_id: str, action: str):
     if action not in ("install", "uninstall"):
         raise HTTPException(400, f"Acción desconocida: {action}")
@@ -390,7 +400,7 @@ async def change_extra(extra_id: str, action: str):
     return {"ok": True}
 
 
-@router.post("/extras-preset/{name}")
+@router.post("/extras-preset/{name}", dependencies=[Depends(_selfhost_only)])
 async def install_preset(name: str):
     try:
         queued = await run_in_threadpool(extras.start_preset, name)

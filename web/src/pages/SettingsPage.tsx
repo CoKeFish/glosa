@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, Provider, Settings } from "../api";
 import { UsageCard } from "../components/UsageCard";
+import { AccountCard, InvitesCard } from "../components/AccountCards";
+import { useAuth } from "../auth";
 import { VoiceCard } from "../components/VoiceCard";
 import { UI_LANGUAGES, useI18n } from "../i18n";
 
@@ -25,6 +27,7 @@ const TRANSLATORS = [
 
 export function SettingsPage() {
   const { t, setUiLanguage } = useI18n();
+  const { mode, user } = useAuth();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [message, setMessage] = useState("");
@@ -124,6 +127,8 @@ export function SettingsPage() {
     <div className="page narrow">
       <h1>{t("set.title")}</h1>
       <div className="settings-stack">
+        {mode === "hosted" && <AccountCard />}
+        {mode === "hosted" && user?.is_admin && <InvitesCard />}
         <section className="card">
           <h2>{t("set.languages")}</h2>
           <label>

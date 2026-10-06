@@ -19,10 +19,55 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# The one account of a self-hosted install, created by the first migration. Every row from
+# before accounts existed belongs to it.
+LOCAL_USER_ID = 1
+
+
+class User(Base):
+    """A reader. Self-hosted glosa has only the local user; the hosted service has accounts."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str | None] = mapped_column(String(320), unique=True, nullable=True)  # stored lower-case
+    password_hash: Mapped[str | None] = mapped_column(String(200), nullable=True)  # argon2; none for the local user
+    name: Mapped[str] = mapped_column(String(100), default="")
+    is_admin: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class AuthSession(Base):
+    """A signed-in browser. The cookie holds a random token; only its hash is stored, so a
+    database leak does not hand out working sessions."""
+
+    __tablename__ = "auth_sessions"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Invite(Base):
+    """An invitation link to create an account on the hosted service, usable once."""
+
+    __tablename__ = "invites"
+
+    code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    note: Mapped[str] = mapped_column(String(200), default="")
+    used_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class Book(Base):
     __tablename__ = "books"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True,
+                                         default=LOCAL_USER_ID)
     title: Mapped[str] = mapped_column(String(500))
     language: Mapped[str] = mapped_column(String(10))
     current_position: Mapped[int] = mapped_column(Integer, default=0)
@@ -52,9 +97,11 @@ class Section(Base):
 
 class Term(Base):
     __tablename__ = "terms"
-    __table_args__ = (UniqueConstraint("language", "key"),)
+    __table_args__ = (UniqueConstraint("user_id", "language", "key", name="uq_terms_user_language_key"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True,
+                                         default=LOCAL_USER_ID)
     language: Mapped[str] = mapped_column(String(10), index=True)
     key: Mapped[str] = mapped_column(String(300))
     kind: Mapped[str] = mapped_column(String(20), default="word")
@@ -126,6 +173,7 @@ class ApiKey(Base):
 
     __tablename__ = "api_keys"
 
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     provider: Mapped[str] = mapped_column(String(50), primary_key=True)
     encrypted: Mapped[str] = mapped_column(Text)
     hint: Mapped[str] = mapped_column(String(8))  # last characters, to recognise it in the UI
@@ -137,6 +185,8 @@ class AIUsage(Base):
     __tablename__ = "ai_usage"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True,
+                                                nullable=True)
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
     provider: Mapped[str] = mapped_column(String(50))
     model: Mapped[str] = mapped_column(String(200))
@@ -148,5 +198,6 @@ class AIUsage(Base):
 class Setting(Base):
     __tablename__ = "settings"
 
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     key: Mapped[str] = mapped_column(String(100), primary_key=True)
     value: Mapped[dict] = mapped_column(JSON)

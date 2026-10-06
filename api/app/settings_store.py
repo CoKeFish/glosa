@@ -28,25 +28,25 @@ DEFAULTS = {
 }
 
 
-def get(session: Session, key: str) -> dict:
-    row = session.get(Setting, key)
+def get(session: Session, user_id: int, key: str) -> dict:
+    row = session.get(Setting, (user_id, key))
     return {**DEFAULTS.get(key, {}), **(row.value if row else {})}
 
 
-def put(session: Session, key: str, value: dict) -> dict:
-    session.merge(Setting(key=key, value=value))
+def put(session: Session, user_id: int, key: str, value: dict) -> dict:
+    session.merge(Setting(user_id=user_id, key=key, value=value))
     session.commit()
-    return get(session, key)
+    return get(session, user_id, key)
 
 
-def all_settings(session: Session) -> dict:
-    return {key: get(session, key) for key in DEFAULTS}
+def all_settings(session: Session, user_id: int) -> dict:
+    return {key: get(session, user_id, key) for key in DEFAULTS}
 
 
-def native_language(session: Session) -> str:
-    return get(session, "native_language")["value"]
+def native_language(session: Session, user_id: int) -> str:
+    return get(session, user_id, "native_language")["value"]
 
 
-def text_model_config(session: Session) -> ModelConfig:
-    v = get(session, "ai.text")
+def text_model_config(session: Session, user_id: int) -> ModelConfig:
+    v = get(session, user_id, "ai.text")
     return ModelConfig(provider=v["provider"], model=v["model"], base_url=v.get("base_url"))

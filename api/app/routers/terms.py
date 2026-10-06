@@ -9,9 +9,10 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app import settings_store, srs
+from app.auth import current_user
 from app.db import get_session
-from app.models import IGNORED, KINDS, KNOWN, LEARNING, Term
-from app.routers.common import normalize_key, require_language, term_out
+from app.models import IGNORED, KINDS, KNOWN, LEARNING, Term, User
+from app.routers.common import normalize_key, own_term, require_language, term_out
 
 router = APIRouter(prefix="/api")
 
@@ -45,15 +46,15 @@ def _apply(term: Term, body: "TermIn | TermPatch") -> None:
 
 
 @router.put("/terms")
-def upsert_term(body: TermIn, session: Session = Depends(get_session)):
+def upsert_term(body: TermIn, user: User = Depends(current_user), session: Session = Depends(get_session)):
     """Create or update by (language, key): the reader does not need to know if the term exists."""
     require_language(body.language)
     if body.kind not in KINDS:
         raise HTTPException(400, f"Tipo inválido: {body.kind}")
     key = normalize_key(body.key)
-    term = session.scalar(select(Term).where(Term.language == body.language, Term.key == key))
+    term = session.scalar(select(Term).where(Term.user_id == user.id, Term.language == body.language, Term.key == key))
     if term is None:
-        term = Term(language=body.language, key=key, kind=body.kind, meaning="", notes="", tags=[], context="")
+        term = Term(user_id=user.id, language=body.language, key=key, kind=body.kind, meaning="", notes="", tags=[], context="")
         srs.set_status(term, body.status if body.status is not None else 1, _now())
         session.add(term)
     _apply(term, body)
@@ -70,20 +71,17 @@ class TermPatch(BaseModel):
 
 
 @router.patch("/terms/{term_id}")
-def patch_term(term_id: int, body: TermPatch, session: Session = Depends(get_session)):
-    term = session.get(Term, term_id)
-    if term is None:
-        raise HTTPException(404, "Término no encontrado")
+def patch_term(term_id: int, body: TermPatch, user: User = Depends(current_user),
+               session: Session = Depends(get_session)):
+    term = own_term(session, user.id, term_id)
     _apply(term, body)
     session.commit()
     return term_out(term)
 
 
 @router.delete("/terms/{term_id}")
-def delete_term(term_id: int, session: Session = Depends(get_session)):
-    term = session.get(Term, term_id)
-    if term is None:
-        raise HTTPException(404, "Término no encontrado")
+def delete_term(term_id: int, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    term = own_term(session, user.id, term_id)
     session.delete(term)
     session.commit()
     return {"ok": True}
@@ -98,9 +96,10 @@ def list_terms(
     due: bool = False,
     limit: int = 100,
     offset: int = 0,
+    user: User = Depends(current_user),
     session: Session = Depends(get_session),
 ):
-    query = select(Term).where(Term.language == language)
+    query = select(Term).where(Term.user_id == user.id, Term.language == language)
     if status is not None:
         query = query.where(Term.status == status)
     else:
@@ -123,31 +122,34 @@ class KeysIn(BaseModel):
 
 
 @router.post("/terms/mark-known")
-def mark_known(body: KeysIn, session: Session = Depends(get_session)):
+def mark_known(body: KeysIn, user: User = Depends(current_user), session: Session = Depends(get_session)):
     """Page turn: every word still new on the page becomes known. Returns what changed, for undo."""
     keys = {normalize_key(k) for k in body.keys}
-    existing = set(session.scalars(select(Term.key).where(Term.language == body.language, Term.key.in_(keys))))
+    existing = set(session.scalars(
+        select(Term.key).where(Term.user_id == user.id, Term.language == body.language, Term.key.in_(keys))))
     created = sorted(keys - existing)
     for key in created:
-        session.add(Term(language=body.language, key=key, kind="word", status=KNOWN, meaning="", notes="",
+        session.add(Term(user_id=user.id, language=body.language, key=key, kind="word", status=KNOWN, meaning="", notes="",
                          tags=[], context=""))
     session.commit()
     return {"created": created}
 
 
 @router.post("/terms/undo-known")
-def undo_known(body: KeysIn, session: Session = Depends(get_session)):
+def undo_known(body: KeysIn, user: User = Depends(current_user), session: Session = Depends(get_session)):
     keys = [normalize_key(k) for k in body.keys]
     result = session.execute(
-        delete(Term).where(Term.language == body.language, Term.key.in_(keys), Term.status == KNOWN)
+        delete(Term).where(Term.user_id == user.id, Term.language == body.language, Term.key.in_(keys),
+                           Term.status == KNOWN)
     )
     session.commit()
     return {"deleted": result.rowcount}
 
 
 @router.get("/terms/export.csv")
-def export_csv(language: str, session: Session = Depends(get_session)):
-    rows = session.scalars(select(Term).where(Term.language == language).order_by(Term.key)).all()
+def export_csv(language: str, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    rows = session.scalars(
+        select(Term).where(Term.user_id == user.id, Term.language == language).order_by(Term.key)).all()
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(["term", "kind", "status", "meaning", "context", "notes", "tags"])
@@ -162,11 +164,11 @@ def export_csv(language: str, session: Session = Depends(get_session)):
 
 
 @router.get("/review/queue")
-def review_queue(language: str, session: Session = Depends(get_session)):
-    size = settings_store.get(session, "review")["session_size"]
+def review_queue(language: str, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    size = settings_store.get(session, user.id, "review")["session_size"]
     rows = session.scalars(
         select(Term)
-        .where(Term.language == language, Term.status.in_(LEARNING), Term.srs_due <= _now())
+        .where(Term.user_id == user.id, Term.language == language, Term.status.in_(LEARNING), Term.srs_due <= _now())
         .order_by(Term.srs_due)
         .limit(size)
     ).all()
@@ -178,10 +180,9 @@ class AnswerIn(BaseModel):
 
 
 @router.post("/review/{term_id}/answer")
-def review_answer(term_id: int, body: AnswerIn, session: Session = Depends(get_session)):
-    term = session.get(Term, term_id)
-    if term is None:
-        raise HTTPException(404, "Término no encontrado")
+def review_answer(term_id: int, body: AnswerIn, user: User = Depends(current_user),
+                  session: Session = Depends(get_session)):
+    term = own_term(session, user.id, term_id)
     now = _now()
     srs.answer(term, body.correct, now)
     session.commit()

@@ -115,6 +115,8 @@ export class ApiError extends Error {}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, init);
+  // The session ended (hosted service): the app shows the sign-in page again.
+  if (res.status === 401 && !path.startsWith("/auth/")) window.dispatchEvent(new Event("glosa:signed-out"));
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -133,7 +135,22 @@ const json = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
+export type Account = { id: number; email: string | null; name: string; is_admin: boolean };
+export type Invite = { code: string; url: string; note: string; created_at: string | null; used_by: string | null; used_at: string | null };
+
 export const api = {
+  me: () => request<{ mode: "selfhost" | "hosted"; user: Account | null }>("/auth/me"),
+  login: (email: string, password: string) => request<{ user: Account }>("/auth/login", json("POST", { email, password })),
+  logout: () => request("/auth/logout", { method: "POST" }),
+  checkInvite: (code: string) => request<{ valid: boolean }>(`/auth/invites/${encodeURIComponent(code)}`),
+  join: (body: { code: string; email: string; password: string; name: string }) =>
+    request<{ user: Account }>("/auth/join", json("POST", body)),
+  changePassword: (current: string, next: string) => request("/auth/password", json("POST", { current, new: next })),
+  invites: () => request<Invite[]>("/admin/invites"),
+  createInvite: (note: string) => request<Invite>("/admin/invites", json("POST", { note })),
+  deleteInvite: (code: string) => request(`/admin/invites/${encodeURIComponent(code)}`, { method: "DELETE" }),
+  accounts: () => request<(Account & { created_at: string | null; books: number; terms: number })[]>("/admin/users"),
+
   languages: () => request<{ code: string; name: string }[]>("/languages"),
   books: () => request<BookSummary[]>("/books"),
   book: (id: number) => request<Book>(`/books/${id}`),

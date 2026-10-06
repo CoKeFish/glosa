@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+import { AuthProvider } from "./auth";
 import { I18nProvider } from "./i18n";
 import { LanguageProvider, Layout } from "./Layout";
 import { BookPage } from "./pages/BookPage";
@@ -16,6 +17,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <I18nProvider>
+      <AuthProvider>
       <LanguageProvider>
         <Routes>
           <Route element={<Layout />}>
@@ -26,10 +28,13 @@ createRoot(document.getElementById("root")!).render(
             <Route path="extras" element={<Extras />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
+          {/* An invitation link opened while already signed in. */}
+          <Route path="join/:code" element={<Navigate to="/" replace />} />
           {/* The reader is full screen, without the app header. */}
           <Route path="read/:sectionId" element={<Reader />} />
         </Routes>
       </LanguageProvider>
+      </AuthProvider>
       </I18nProvider>
     </BrowserRouter>
   </StrictMode>,

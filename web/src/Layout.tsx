@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import { api } from "./api";
+import { useAuth } from "./auth";
 import { useI18n } from "./i18n";
 import { configureVoice } from "./speech";
 import wordmark from "./wordmark.svg?raw";
@@ -43,6 +44,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 export function Layout() {
   const { t } = useI18n();
   const { language, setLanguage, languages } = useStudyLanguage();
+  const { mode, user, signOut } = useAuth();
   const location = useLocation();
   const [known, setKnown] = useState<number | null>(null);
 
@@ -60,7 +62,7 @@ export function Layout() {
           <NavLink to="/" end>{t("nav.library")}</NavLink>
           <NavLink to="/vocabulary">{t("nav.vocabulary")}</NavLink>
           <NavLink to="/review">{t("nav.review")}</NavLink>
-          <NavLink to="/extras">{t("nav.extras")}</NavLink>
+          {mode === "selfhost" && <NavLink to="/extras">{t("nav.extras")}</NavLink>}
           <NavLink to="/settings">{t("nav.settings")}</NavLink>
         </nav>
         <div className="topbar-right">
@@ -74,6 +76,9 @@ export function Layout() {
               <option key={l.code} value={l.code}>{l.name}</option>
             ))}
           </select>
+          {mode === "hosted" && user && (
+            <button className="btn-ghost signout" onClick={signOut} title={user.email ?? ""}>{t("auth.signOut")}</button>
+          )}
         </div>
       </header>
       <main>
