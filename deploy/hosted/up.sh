@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start or update glosa's hosted service on the VPS. Secrets are fetched from Doppler with the
-# official CLI image, handed to docker compose through a pipe, and never written to disk.
+# official CLI image, kept in this process's environment, and never written to disk.
 #
 #   deploy/hosted/up.sh            pull the images and (re)start
 #   deploy/hosted/up.sh <args>     any other docker compose command, e.g. "ps" or "logs api"
@@ -12,11 +12,18 @@ token_file="${GLOSA_DOPPLER_TOKEN_FILE:-/opt/glosa-hosted/doppler-token}"
 
 secrets() {
   docker run --rm -e DOPPLER_TOKEN="$(cat "$token_file")" dopplerhq/cli:3 \
-    secrets download --no-file --format env
+    secrets download --no-file --format docker
 }
 
+# The secrets become environment variables of this process only: compose reads an env file
+# more than once, which a pipe cannot serve, and a file would leave them on disk. Each line
+# is exported as is, never evaluated by the shell.
+while IFS= read -r line; do
+  [ -n "$line" ] && export "$line"
+done < <(secrets)
+
 compose() {
-  docker compose -f "$here/compose.yml" --env-file <(secrets) "$@"
+  docker compose -f "$here/compose.yml" "$@"
 }
 
 if [ "$#" -eq 0 ]; then
