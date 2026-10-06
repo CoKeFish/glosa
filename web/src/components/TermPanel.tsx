@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, DictionaryResult, IGNORED, KNOWN, Section, Term, Translator } from "../api";
+import { useAuth } from "../auth";
 import { useI18n } from "../i18n";
 import { Ban, Check, Close, External, Speaker, Sparkle } from "../icons";
 import { play, speak } from "../speech";
@@ -30,7 +31,9 @@ function statusHint(term: Term | undefined, t: ReturnType<typeof useI18n>["t"]):
   if (term.status === IGNORED) return t("card.hint.ignored");
   return t(`card.hint.${term.status}` as "card.hint.1");
 }
-const PROVIDERS: Provider[] = ["llm", "local", "ai"];
+const ALL_PROVIDERS: Provider[] = ["llm", "local", "ai"];
+// The hosted service has no local translation model (no Ollama on the server).
+const providersFor = (mode: "selfhost" | "hosted") => (mode === "hosted" ? ALL_PROVIDERS.filter((p) => p !== "llm") : ALL_PROVIDERS);
 type Provider = Translator;
 const PROVIDER_LABEL = { llm: "card.byLlm", local: "card.byLocal", ai: "card.byAi" } as const;
 const PROVIDER_ACTION = { llm: "card.translateLlm", local: "card.translateLocal", ai: "card.translateAi" } as const;
@@ -39,6 +42,7 @@ type Translations = Partial<Record<Provider, { text: string | null; message?: st
 
 export function TermPanel({ section, selection, term, onSaved, onRemoved, onSelect, onClose, activeGrammar, onGrammar, autoSave, autoPlay }: Props) {
   const { t } = useI18n();
+  const PROVIDERS = providersFor(useAuth().mode);
   const language = section.book.language;
   const sentenceIndex = section.tokens[selection.tokens[0]].s;
   const context = sentenceText(section.tokens, sentenceIndex);

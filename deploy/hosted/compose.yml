@@ -38,11 +38,22 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       TTS_KOKORO_URL: http://tts-kokoro:8880
+      TRANSLATOR_URL: http://translator:5000
     volumes:
       - api-data:/data
     depends_on:
       db:
         condition: service_healthy
+
+  # Machine translation of the sentence around a word: it ranks the dictionary's meanings and
+  # translates definitions the dictionary has only in English. Free, and light on memory.
+  translator:
+    image: libretranslate/libretranslate:latest
+    restart: unless-stopped
+    environment:
+      LT_LOAD_ONLY: en,es,fr,pt,it,de
+    volumes:
+      - translator-models:/home/libretranslate/.local
 
   # The voice for phrases and sentences. On this CPU a sentence takes a few seconds the first
   # time; every sentence is cached, so a book's second reader hears it at once.
@@ -78,3 +89,4 @@ networks:
 volumes:
   db-data:
   api-data:
+  translator-models:

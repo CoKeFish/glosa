@@ -150,7 +150,7 @@ export function SettingsPage() {
         <section className="card">
           <h2>{t("set.translation")}</h2>
           <div className="choice-cards three">
-            {TRANSLATORS.map(({ id, label, help }) => (
+            {TRANSLATORS.filter((tr) => mode !== "hosted" || tr.id !== "llm").map(({ id, label, help }) => (
               <label key={id} className={`choice-card ${translation.provider === id ? "on" : ""}`}>
                 <input
                   type="radio"
