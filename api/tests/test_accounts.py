@@ -138,3 +138,10 @@ def test_the_public_address_counts_as_our_own_origin(hosted, monkeypatch):
         reader = _reader(_admin_client(), "gus")
         r = reader.put("/api/terms", json={"language": "en", "key": "y"}, headers={"Origin": "https://app.glosa.example"})
         assert r.status_code == 200
+
+
+def test_hosted_readers_translate_with_the_cheap_ai_by_default(hosted):
+    with TestClient(app):
+        settings = _reader(_admin_client(), "hal").get("/api/settings").json()
+        assert settings["translation"]["provider"] == "ai"
+        assert settings["ai.text"] == {"provider": "deepseek", "model": "deepseek-v4-flash", "base_url": None}

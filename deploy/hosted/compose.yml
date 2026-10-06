@@ -1,0 +1,80 @@
+# glosa as a web service, on the VPS, behind the proxy Coolify already runs (Traefik on the
+# `coolify` network), which also gets the certificate.
+#
+# Secrets come from Doppler (project glosa, config prd) at start, through a read-only
+# service token kept in /opt/glosa-hosted/doppler-token; nothing secret is written to disk:
+#
+#   cd /opt/glosa && git pull && deploy/hosted/up.sh
+#
+# Only the web container joins the shared `coolify` network; the database, the API and the
+# voice stay on this project's own network.
+name: glosa-hosted
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: glosa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?from Doppler}
+      POSTGRES_DB: glosa
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glosa"]
+      interval: 5s
+      retries: 20
+
+  api:
+    image: ghcr.io/cokefish/glosa-api:${GLOSA_VERSION:-latest}
+    container_name: glosa-hosted-api
+    restart: unless-stopped
+    environment:
+      GLOSA_MODE: hosted
+      GLOSA_PUBLIC_URL: https://app.glosa.suchima.com
+      DATABASE_URL: postgresql+psycopg://glosa:${POSTGRES_PASSWORD}@db:5432/glosa
+      GLOSA_SECRET_KEY: ${GLOSA_SECRET_KEY:?from Doppler}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      TTS_KOKORO_URL: http://tts-kokoro:8880
+    volumes:
+      - api-data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # The voice for phrases and sentences. On this CPU a sentence takes a few seconds the first
+  # time; every sentence is cached, so a book's second reader hears it at once.
+  tts-kokoro:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/cokefish/glosa-web:${GLOSA_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      GLOSA_API_UPSTREAM: glosa-hosted-api:8000
+    networks: [default, coolify]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: coolify
+      traefik.http.routers.glosa-app-http.entrypoints: http
+      traefik.http.routers.glosa-app-http.rule: Host(`app.glosa.suchima.com`)
+      traefik.http.routers.glosa-app-http.middlewares: glosa-app-https
+      traefik.http.middlewares.glosa-app-https.redirectscheme.scheme: https
+      traefik.http.routers.glosa-app.entrypoints: https
+      traefik.http.routers.glosa-app.rule: Host(`app.glosa.suchima.com`)
+      traefik.http.routers.glosa-app.tls: "true"
+      traefik.http.routers.glosa-app.tls.certresolver: letsencrypt
+      traefik.http.services.glosa-app.loadbalancer.server.port: "80"
+    depends_on:
+      - api
+
+networks:
+  coolify:
+    external: true
+
+volumes:
+  db-data:
+  api-data:

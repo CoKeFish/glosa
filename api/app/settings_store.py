@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from app import config
 from app.ai.base import ModelConfig
 from app.ai.registry import DEFAULT_TEXT_MODEL
 from app.models import Setting
@@ -28,9 +29,23 @@ DEFAULTS = {
 }
 
 
+# The hosted service has no Ollama and no local translator: the AI translates, with a cheap
+# model by default (DeepSeek v4 Flash, a fraction of a cent per phrase).
+HOSTED_DEFAULTS = {
+    "translation": {"provider": "ai", "llm_model": "translategemma:4b", "use_gpu": False},
+    "ai.text": {"provider": "deepseek", "model": "deepseek-v4-flash", "base_url": None},
+}
+
+
+def default(key: str) -> dict:
+    if config.hosted() and key in HOSTED_DEFAULTS:
+        return HOSTED_DEFAULTS[key]
+    return DEFAULTS.get(key, {})
+
+
 def get(session: Session, user_id: int, key: str) -> dict:
     row = session.get(Setting, (user_id, key))
-    return {**DEFAULTS.get(key, {}), **(row.value if row else {})}
+    return {**default(key), **(row.value if row else {})}
 
 
 def put(session: Session, user_id: int, key: str, value: dict) -> dict:
