@@ -203,7 +203,7 @@ async def models(provider: str, base_url: str | None = None, user: User = Depend
     return {"models": items, "recommended": PROVIDERS[provider].default_model}
 
 
-FEATURES = ("translate", "explain", "expressions", "grammar")
+FEATURES = ("translate", "explain", "expressions", "grammar", "drills_generate", "drills_correct")
 
 
 @router.get("/ai/usage")

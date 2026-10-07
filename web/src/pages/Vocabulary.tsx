@@ -30,6 +30,7 @@ export function Vocabulary() {
     phrase: t("card.kind.phrase"),
     phrasal_verb: t("card.kind.phrasal"),
     expression: t("card.kind.expression"),
+    rule: t("card.kind.rule"),
   };
 
   useEffect(() => {
@@ -68,6 +69,7 @@ export function Vocabulary() {
           <option value="phrase">{t("vocab.phrases")}</option>
           <option value="phrasal_verb">{t("vocab.phrasals")}</option>
           <option value="expression">{t("vocab.expressions")}</option>
+          <option value="rule">{t("vocab.rules")}</option>
         </select>
         <label className="check"><input type="checkbox" checked={due} onChange={(e) => setDue(e.target.checked)} /> {t("vocab.due")}</label>
       </div>

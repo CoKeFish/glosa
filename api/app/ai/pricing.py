@@ -32,6 +32,8 @@ TYPICAL_TOKENS = {
     "explain": (300, 300),
     "expressions": (400, 400),
     "grammar": (400, 500),
+    "drills_generate": (900, 500),
+    "drills_correct": (2200, 3500),
 }
 
 

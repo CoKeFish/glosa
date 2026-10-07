@@ -26,6 +26,9 @@ DEFAULTS = {
     "ai.text": {"provider": DEFAULT_TEXT_MODEL.provider, "model": DEFAULT_TEXT_MODEL.model, "base_url": None},
     # Prices the reader entered for models without a known price: {model: {"input", "output"}} in USD/M tokens.
     "ai.prices": {},
+    # Drills: the reader's own versions of the generator and corrector prompts; empty means
+    # the files in app/drills/prompts.
+    "drills.prompts": {},
 }
 
 

@@ -20,6 +20,7 @@ dependencies = [
     "docker>=7.1",
     "alembic>=1.14",
     "argon2-cffi>=23.1",
+    "genanki>=0.13",
 ]
 
 [project.optional-dependencies]

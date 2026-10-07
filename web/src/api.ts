@@ -2,7 +2,7 @@ export type Token = { t: string; ws: string; w: boolean; k: string | null; l: st
 export type UnitKind = "phrasal_verb" | "phrase" | "expression";
 export type Unit = { k: string; kind: UnitKind; sub?: "particle" | "prepositional"; i: number[]; sep: boolean };
 export type GrammarMatch = { type: string; s: number; i: number[]; label: string; explanation: string; lemma: string | null };
-export type TermKind = "word" | "phrase" | "phrasal_verb" | "expression";
+export type TermKind = "word" | "phrase" | "phrasal_verb" | "expression" | "rule";
 
 export type Term = {
   id: number;
@@ -135,10 +135,60 @@ const json = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
+export type Topic = {
+  id: number;
+  block: string;
+  description: string;
+  status: "no_visto" | "falla" | "dominado";
+  active: boolean;
+  streak: number;
+  last_practiced: string | null;
+};
+export type DrillItem = {
+  id: number;
+  spanish: string;
+  topic_ids: number[];
+  answer: string;
+  correction: string;
+  explanation: string;
+  examples: string[];
+  failed_topic_ids: number[];
+  verdict: "correcta" | "con_errores" | null;
+  error_tags: string[];
+};
+export type DrillRound = {
+  id: number;
+  created_at: string | null;
+  corrected_at: string | null;
+  book_id: number | null;
+  closing_note: string;
+  correct: number;
+  total: number;
+  items?: DrillItem[];
+};
+export type DrillPrompt = { text: string; custom: boolean; file: string };
+
 export type Account = { id: number; email: string | null; name: string; is_admin: boolean };
 export type Invite = { code: string; url: string; note: string; created_at: string | null; used_by: string | null; used_at: string | null };
 
 export const api = {
+  drillsStatus: () => request<{ ready: boolean; provider: string; model: string; reason: string | null }>("/drills/status"),
+  syllabus: () => request<Topic[]>("/drills/syllabus"),
+  patchTopic: (id: number, patch: { status?: Topic["status"]; active?: boolean }) =>
+    request<Topic>(`/drills/syllabus/${id}`, json("PATCH", patch)),
+  importSyllabus: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ topics: number }>("/drills/syllabus/import", { method: "POST", body: form });
+  },
+  rounds: () => request<DrillRound[]>("/drills/rounds"),
+  newRound: (bookId: number | null) => request<DrillRound>("/drills/rounds", json("POST", { book_id: bookId })),
+  round: (id: number) => request<DrillRound>(`/drills/rounds/${id}`),
+  deleteRound: (id: number) => request(`/drills/rounds/${id}`, { method: "DELETE" }),
+  submitRound: (id: number, answers: string[]) => request<DrillRound>(`/drills/rounds/${id}/answers`, json("POST", { answers })),
+  drillStats: () => request<{ errors: { tag: string; count: number }[] }>("/drills/stats"),
+  drillPrompts: () => request<Record<"generator" | "corrector", DrillPrompt>>("/drills/prompts"),
+  putDrillPrompt: (name: "generator" | "corrector", text: string) => request(`/drills/prompts/${name}`, json("PUT", { text })),
   me: () => request<{ mode: "selfhost" | "hosted"; user: Account | null }>("/auth/me"),
   login: (email: string, password: string) => request<{ user: Account }>("/auth/login", json("POST", { email, password })),
   logout: () => request("/auth/logout", { method: "POST" }),

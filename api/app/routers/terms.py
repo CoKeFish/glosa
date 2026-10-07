@@ -3,6 +3,7 @@ import io
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import delete, func, or_, select
@@ -146,10 +147,18 @@ def undo_known(body: KeysIn, user: User = Depends(current_user), session: Sessio
     return {"deleted": result.rowcount}
 
 
+def _export_rows(session: Session, user_id: int, language: str, kind: str | None, tag: str | None) -> list[Term]:
+    query = select(Term).where(Term.user_id == user_id, Term.language == language)
+    if kind:
+        query = query.where(Term.kind == kind)
+    rows = session.scalars(query.order_by(Term.key)).all()
+    return [t for t in rows if not tag or tag in (t.tags or [])]
+
+
 @router.get("/terms/export.csv")
-def export_csv(language: str, user: User = Depends(current_user), session: Session = Depends(get_session)):
-    rows = session.scalars(
-        select(Term).where(Term.user_id == user.id, Term.language == language).order_by(Term.key)).all()
+def export_csv(language: str, kind: str | None = None, tag: str | None = None,
+               user: User = Depends(current_user), session: Session = Depends(get_session)):
+    rows = _export_rows(session, user.id, language, kind, tag)
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(["term", "kind", "status", "meaning", "context", "notes", "tags"])
@@ -161,6 +170,36 @@ def export_csv(language: str, user: User = Depends(current_user), session: Sessi
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="glosa-{language}.csv"'},
     )
+
+
+@router.get("/terms/export.apkg")
+def export_apkg(language: str, kind: str | None = None, tag: str | None = None,
+                user: User = Depends(current_user), session: Session = Depends(get_session)):
+    """An Anki deck: question = the term (or the rule), answer = its meaning and context.
+    Ids are derived from the account and language, so importing again updates the same deck."""
+    import tempfile
+    import zlib
+    from html import escape
+
+    import genanki
+
+    rows = _export_rows(session, user.id, language, kind, tag)
+    model = genanki.Model(
+        1607392320, "glosa",
+        fields=[{"name": "Question"}, {"name": "Answer"}],
+        templates=[{"name": "Card 1", "qfmt": "{{Question}}", "afmt": '{{FrontSide}}<hr id="answer">{{Answer}}'}],
+    )
+    deck_id = zlib.crc32(f"glosa:{user.id}:{language}:{kind}:{tag}".encode()) & 0x7FFFFFFF
+    deck = genanki.Deck(deck_id, f"glosa — {language}" + (f" — {tag}" if tag else ""))
+    for t in rows:
+        answer = escape(t.meaning or "") + (f"<br><br><i>{escape(t.context)}</i>" if t.context else "")
+        guid = genanki.guid_for(f"glosa:{user.id}:{t.language}:{t.key}")
+        deck.add_note(genanki.Note(model=model, fields=[escape(t.key), answer], guid=guid))
+    with tempfile.NamedTemporaryFile(suffix=".apkg") as f:
+        genanki.Package(deck).write_to_file(f.name)
+        data = open(f.name, "rb").read()
+    return Response(data, media_type="application/octet-stream",
+                    headers={"Content-Disposition": f'attachment; filename="glosa-{language}.apkg"'})
 
 
 @router.get("/review/queue")

@@ -32,6 +32,10 @@ The core (database, API, web) is small. Everything heavy is an extra, installed 
 
 The app reaches Docker through its socket to do this, and only touches containers it labelled `glosa.extra`. API keys for cloud AI can be entered on the same page; they are stored encrypted on that computer only.
 
+### Practice (Drills)
+
+The **Práctica** page adds guided practice to reading: rounds of 7 sentences in Spanish to translate into English, corrected by the configured AI (it needs one; nothing is corrected by local rules). Each round mixes 2-3 topics you get wrong, 2 of the topic you are learning and 2 mastered ones for review, from a syllabus (`api/app/drills/temario-base.md` by default, or your own `temario.md` imported from the page, with ⬜ 🟡 🟢 markers). The correction shows what changed, explains every mistake, tags it, moves the syllabus (🟡 → 🟢 after two clean rounds in a row, back to 🟡 when the mistake returns) and sends rules and new words to the review queue, exportable to Anki (`.apkg` or CSV). The prompts are files, `api/app/drills/prompts/generator.md` and `corrector.md`, read on every round; you can also save your own version from the page.
+
 ### Self-hosted or hosted
 
 One codebase runs in two modes, set with `GLOSA_MODE`:

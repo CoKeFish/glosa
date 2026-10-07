@@ -12,7 +12,8 @@ LEARNING = (1, 2, 3, 4)  # New, Recognized, Familiar, Learned
 KNOWN = 5
 
 # phrase: a selection the reader saved; expression: an idiom or set phrase the parser found.
-KINDS = ("word", "phrase", "phrasal_verb", "expression")
+# rule: a grammar rule learned in a practice round (Drills), reviewed like any term.
+KINDS = ("word", "phrase", "phrasal_verb", "expression", "rule")
 
 
 def utcnow() -> datetime:
@@ -201,3 +202,76 @@ class Setting(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     key: Mapped[str] = mapped_column(String(100), primary_key=True)
     value: Mapped[dict] = mapped_column(JSON)
+
+
+# --- Drills: guided practice, Spanish → English translation rounds ------------------------
+
+TOPIC_STATUSES = ("no_visto", "falla", "dominado")
+
+
+class SyllabusTopic(Base):
+    """One topic of the reader's syllabus (a line of temario.md), with how well it is known."""
+
+    __tablename__ = "syllabus_topics"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True,
+                                         default=LOCAL_USER_ID)
+    position: Mapped[int] = mapped_column(Integer)  # order in the syllabus
+    block: Mapped[str] = mapped_column(String(200))  # "2. Presente"
+    description: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="no_visto")
+    active: Mapped[bool] = mapped_column(default=False)  # the topic being learned now
+    last_practiced: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    streak: Mapped[int] = mapped_column(Integer, default=0)  # rounds in a row without an error
+
+
+class Round(Base):
+    __tablename__ = "rounds"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True,
+                                         default=LOCAL_USER_ID)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    corrected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    book_id: Mapped[int | None] = mapped_column(ForeignKey("books.id", ondelete="SET NULL"), nullable=True)
+    closing_note: Mapped[str] = mapped_column(Text, default="")
+
+    items: Mapped[list["RoundItem"]] = relationship(
+        back_populates="round", cascade="all, delete-orphan", order_by="RoundItem.position"
+    )
+
+
+class RoundItem(Base):
+    __tablename__ = "round_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    round_id: Mapped[int] = mapped_column(ForeignKey("rounds.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    spanish: Mapped[str] = mapped_column(Text)
+    topic_ids: Mapped[list] = mapped_column(JSON, default=list)
+    answer: Mapped[str] = mapped_column(Text, default="")
+    correction: Mapped[str] = mapped_column(Text, default="")
+    explanation: Mapped[str] = mapped_column(Text, default="")
+    examples: Mapped[list] = mapped_column(JSON, default=list)  # English sentences worth hearing
+    failed_topic_ids: Mapped[list] = mapped_column(JSON, default=list)
+    verdict: Mapped[str | None] = mapped_column(String(20), nullable=True)  # correcta | con_errores
+
+    round: Mapped[Round] = relationship(back_populates="items")
+    error_tags: Mapped[list["ErrorTag"]] = relationship(secondary="round_item_errors")
+
+
+class ErrorTag(Base):
+    """A normalized kind of mistake ("tercera_persona_s"), shared so statistics add up."""
+
+    __tablename__ = "error_tags"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tag: Mapped[str] = mapped_column(String(80), unique=True)
+
+
+class RoundItemError(Base):
+    __tablename__ = "round_item_errors"
+
+    item_id: Mapped[int] = mapped_column(ForeignKey("round_items.id", ondelete="CASCADE"), primary_key=True)
+    tag_id: Mapped[int] = mapped_column(ForeignKey("error_tags.id", ondelete="CASCADE"), primary_key=True)

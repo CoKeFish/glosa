@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app import config, migrate
-from app.routers import assist, auth, books, terms
+from app.routers import assist, auth, books, drills, terms
 
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app.include_router(auth.router)
 app.include_router(books.router)
 app.include_router(terms.router)
 app.include_router(assist.router)
+app.include_router(drills.router)
 
 
 @app.get("/api/health")

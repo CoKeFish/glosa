@@ -43,6 +43,7 @@ services:
     volumes:
       - ./api/app:/app/app
       - ./api/tests:/app/tests
+      - ./api/migrations:/app/migrations
       - api-data:/data
       # Lets the app install and remove its extras (only containers labelled glosa.extra).
       - /var/run/docker.sock:/var/run/docker.sock
